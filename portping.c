@@ -296,6 +296,7 @@ static void usage(const char *prog) {
         "  -6             Force IPv6\n"
         "  -T             Show timestamp on each line\n"
         "  -q             Quiet mode — only show summary\n"
+        "  --csv          Output in CSV format\n"
         "  -h             Show this help\n"
         "\n"
         "Examples:\n"
@@ -316,6 +317,7 @@ int main(int argc, char **argv) {
     int af = AF_UNSPEC;
     int show_timestamp = 0;
     int quiet = 0;
+    int csv = 0;
     int i;
 
     /* Parse args */
@@ -337,6 +339,9 @@ int main(int argc, char **argv) {
             show_timestamp = 1;
         } else if (strcmp(argv[i], "-q") == 0) {
             quiet = 1;
+        } else if (strcmp(argv[i], "--csv") == 0) {
+            csv = 1;
+            quiet = 1;  /* csv implies no decorative output */
         } else if (argv[i][0] == '-') {
             fprintf(stderr, "Unknown option: %s\n", argv[i]);
             usage(argv[0]);
@@ -378,7 +383,9 @@ int main(int argc, char **argv) {
     char ipstr[INET6_ADDRSTRLEN];
     format_addr(res, ipstr, sizeof(ipstr));
 
-    if (!quiet)
+    if (csv)
+        printf("seq,host,port,ip,status,ms\n");
+    else if (!quiet)
         printf("\n%sPORTPING%s %s%s:%s%s (%s)\n\n",
                C_BOLD, C_RESET, C_BOLD, host, port, C_RESET, ipstr);
 
@@ -399,7 +406,9 @@ int main(int argc, char **argv) {
 
         switch (r) {
         case RESULT_OPEN:
-            if (!quiet) {
+            if (csv)
+                printf("%d,%s,%s,%s,open,%.1f\n", seq, host, port, ipstr, ms);
+            else if (!quiet) {
                 if (show_timestamp) print_timestamp();
                 printf("  %s[%d]%s %s:%s  %sopen%s  %.1f ms\n",
                        C_BOLD, seq, C_RESET, host, port,
@@ -413,7 +422,9 @@ int main(int argc, char **argv) {
             break;
 
         case RESULT_REFUSED:
-            if (!quiet) {
+            if (csv)
+                printf("%d,%s,%s,%s,refused,%.1f\n", seq, host, port, ipstr, ms);
+            else if (!quiet) {
                 if (show_timestamp) print_timestamp();
                 printf("  %s[%d]%s %s:%s  %srefused%s  %.1f ms\n",
                        C_BOLD, seq, C_RESET, host, port,
@@ -423,7 +434,9 @@ int main(int argc, char **argv) {
             break;
 
         case RESULT_TIMEOUT:
-            if (!quiet) {
+            if (csv)
+                printf("%d,%s,%s,%s,timeout,\n", seq, host, port, ipstr);
+            else if (!quiet) {
                 if (show_timestamp) print_timestamp();
                 printf("  %s[%d]%s %s:%s  %stimeout%s  >%d ms\n",
                        C_BOLD, seq, C_RESET, host, port,
@@ -433,7 +446,9 @@ int main(int argc, char **argv) {
             break;
 
         case RESULT_ERROR:
-            if (!quiet) {
+            if (csv)
+                printf("%d,%s,%s,%s,error,\n", seq, host, port, ipstr);
+            else if (!quiet) {
                 if (show_timestamp) print_timestamp();
                 printf("  %s[%d]%s %s:%s  %serror%s\n",
                        C_BOLD, seq, C_RESET, host, port,
@@ -453,6 +468,8 @@ int main(int argc, char **argv) {
     int total = success + failed + refused;
     double loss = total > 0 ? (double)(failed + refused) / total * 100.0 : 0;
     double avg = success > 0 ? total_ms / success : 0;
+
+    if (csv) goto cleanup;
 
     printf("\n--- %s:%s portping statistics ---\n", host, port);
     printf("%d attempts, %s%d open%s, %d refused, %d timeout/error",
@@ -475,6 +492,7 @@ int main(int argc, char **argv) {
 
     printf("\n");
 
+cleanup:
     /* Cleanup */
     freeaddrinfo(res);
     net_cleanup();

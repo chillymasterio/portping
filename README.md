@@ -5,7 +5,7 @@
 ```
 $ portping google.com 443
 
-PORTPING google.com:443 (142.250.74.46)
+PORTPING google.com:443 (142.250.74.46) — DNS 12.4 ms
 
   [1] google.com:443  open  12.3 ms
   [2] google.com:443  open  11.8 ms
@@ -13,7 +13,7 @@ PORTPING google.com:443 (142.250.74.46)
   ^C
 --- google.com:443 portping statistics ---
 3 attempts, 3 open, 0 refused, 0 timeout/error (0% loss)
-rtt min/avg/max = 11.8/12.1/12.3 ms
+rtt min/avg/max/jitter = 11.8/12.1/12.3/0.2 ms
 ```
 
 ## Why?
@@ -41,7 +41,7 @@ Or just compile directly:
 
 ```bash
 # Linux / macOS
-gcc -O2 -o portping portping.c
+gcc -O2 -o portping portping.c -lm
 
 # Windows (MSVC)
 cl portping.c ws2_32.lib
@@ -49,7 +49,7 @@ cl portping.c ws2_32.lib
 
 ### Download
 
-Grab a prebuilt binary from [Releases](https://github.com/USER/portping/releases/latest).
+Grab a prebuilt binary from [Releases](https://github.com/chillymasterio/portping/releases/latest).
 
 ## Usage
 
@@ -60,6 +60,15 @@ Options:
   -c <count>     Number of attempts (default: infinite)
   -t <ms>        Timeout per attempt in ms (default: 2000)
   -i <ms>        Interval between attempts in ms (default: 1000)
+  -4             Force IPv4
+  -6             Force IPv6
+  -T             Show timestamp on each line
+  -q             Quiet mode — only show summary
+  -b             Grab service banner after connect
+  -w <sec>       Stop after <sec> seconds total (deadline)
+  --csv          Output in CSV format
+  --no-color     Disable colored output
+  -V, --version  Show version
   -h             Show help
 ```
 
@@ -75,11 +84,46 @@ portping -c 5 -t 500 192.168.1.1 22
 # Fast polling — 200ms interval
 portping -c 20 -i 200 db-server 5432
 
+# Force IPv4
+portping -4 example.com 443
+
+# Scan multiple ports at once
+portping myserver.com 22,80,443,3306,8080
+
+# Grab service banners (SSH, SMTP, FTP, etc.)
+portping -b -c 1 myserver.com 22
+
+# Run for exactly 30 seconds with timestamps
+portping -T -w 30 db-server 5432
+
+# CSV output for monitoring
+portping --csv -c 100 prod-api 443 > log.csv
+
+# Quiet mode — just the summary
+portping -q -c 10 example.com 443
+
 # Script: wait for a service to come up
 until portping -c 1 -t 1000 localhost 8080 > /dev/null 2>&1; do
     sleep 1
 done
 echo "Service is up!"
+```
+
+### Multi-port scan
+
+Pass comma-separated ports to scan all of them at once:
+
+```
+$ portping myserver.com 22,80,443,3306
+
+  Scanning myserver.com ports: 22,80,443,3306
+
+  22     myserver.com:22  open     8.2 ms
+  80     myserver.com:80  open     7.9 ms
+  443    myserver.com:443  open     8.1 ms
+  3306   myserver.com:3306  refused  7.5 ms
+
+  3/4 ports open
 ```
 
 ### Output
@@ -105,6 +149,8 @@ echo "Service is up!"
 - **Deploy scripts** — wait for a service to be ready before proceeding
 - **Troubleshooting** — distinguish between "host down", "port closed", and "filtered"
 - **Latency measurement** — TCP handshake time to a specific service
+- **Service discovery** — scan multiple ports, grab banners
+- **Log analysis** — CSV output with timestamps for dashboards
 
 ## License
 

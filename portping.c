@@ -441,6 +441,7 @@ static void usage(const char *prog) {
         "  -H <path>      HTTP health check (GET path, show status)\n"
         "  -w <sec>       Stop after <sec> seconds total (deadline)\n"
         "  --csv          Output in CSV format\n"
+        "  --json         Output summary as JSON\n"
         "  --no-color     Disable colored output\n"
         "  -V, --version  Show version\n"
         "  -h             Show this help\n"
@@ -534,6 +535,7 @@ int main(int argc, char **argv) {
     int deadline_sec = 0;  /* 0 = no deadline */
     int banner_grab = 0;
     const char *http_path = NULL;
+    int json = 0;
     int i;
 
     /* Parse args */
@@ -568,7 +570,10 @@ int main(int argc, char **argv) {
             http_path = argv[++i];
         } else if (strcmp(argv[i], "--csv") == 0) {
             csv = 1;
-            quiet = 1;  /* csv implies no decorative output */
+            quiet = 1;
+        } else if (strcmp(argv[i], "--json") == 0) {
+            json = 1;
+            quiet = 1;
         } else if (argv[i][0] == '-') {
             fprintf(stderr, "Unknown option: %s\n", argv[i]);
             usage(argv[0]);
@@ -769,6 +774,36 @@ int main(int argc, char **argv) {
     double avg = success > 0 ? total_ms / success : 0;
 
     if (csv) goto cleanup;
+
+    if (json) {
+        double jitter = 0;
+        if (success > 1) {
+            double variance = (total_ms2 / success) - (avg * avg);
+            jitter = sqrt(variance > 0 ? variance : 0);
+        }
+        printf("{\n");
+        printf("  \"host\": \"%s\",\n", host);
+        printf("  \"port\": %s,\n", port);
+        printf("  \"ip\": \"%s\",\n", ipstr);
+        printf("  \"attempts\": %d,\n", total);
+        printf("  \"open\": %d,\n", success);
+        printf("  \"refused\": %d,\n", refused);
+        printf("  \"failed\": %d,\n", failed);
+        printf("  \"loss_pct\": %.1f,\n", loss);
+        if (success > 0) {
+            printf("  \"rtt_min\": %.1f,\n", min_ms);
+            printf("  \"rtt_avg\": %.1f,\n", avg);
+            printf("  \"rtt_max\": %.1f,\n", max_ms);
+            printf("  \"rtt_jitter\": %.1f\n", jitter);
+        } else {
+            printf("  \"rtt_min\": null,\n");
+            printf("  \"rtt_avg\": null,\n");
+            printf("  \"rtt_max\": null,\n");
+            printf("  \"rtt_jitter\": null\n");
+        }
+        printf("}\n");
+        goto cleanup;
+    }
 
     printf("\n--- %s:%s portping statistics ---\n", host, port);
     printf("%d attempts, %s%d open%s, %d refused, %d timeout/error",

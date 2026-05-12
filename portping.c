@@ -32,6 +32,10 @@
 #include <signal.h>
 #include <math.h>
 
+#ifdef _WIN32
+  #define strtok_r strtok_s
+#endif
+
 /* ── Timing ── */
 
 #ifdef _WIN32
@@ -307,6 +311,73 @@ static void usage(const char *prog) {
         "\n", prog, prog, prog, prog);
 }
 
+/* ── Port scan (comma-separated ports) ── */
+
+static int scan_ports(const char *host, const char *portlist, int af,
+                      int timeout_ms, int csv) {
+    char buf[1024];
+    char *tok, *save;
+    int open_count = 0, total = 0;
+
+    strncpy(buf, portlist, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = '\0';
+
+    if (csv)
+        printf("host,port,ip,status,ms\n");
+    else
+        printf("\n  Scanning %s ports: %s\n\n", host, portlist);
+
+    for (tok = strtok_r(buf, ",", &save); tok; tok = strtok_r(NULL, ",", &save)) {
+        struct addrinfo *res;
+        int rc = resolve(host, tok, af, &res);
+        if (rc != 0) {
+            fprintf(stderr, "  Cannot resolve %s:%s\n", host, tok);
+            continue;
+        }
+
+        char ipstr[INET6_ADDRSTRLEN];
+        format_addr(res, ipstr, sizeof(ipstr));
+
+        double ms = 0;
+        result_t r = tcp_ping(res, timeout_ms, &ms);
+        total++;
+
+        if (csv) {
+            const char *status = (r == RESULT_OPEN) ? "open" :
+                                 (r == RESULT_REFUSED) ? "refused" :
+                                 (r == RESULT_TIMEOUT) ? "timeout" : "error";
+            printf("%s,%s,%s,%s,%.1f\n", host, tok, ipstr, status, ms);
+        } else {
+            switch (r) {
+            case RESULT_OPEN:
+                printf("  %s%-6s%s %s:%s  %sopen%s     %.1f ms\n",
+                       C_GREEN, tok, C_RESET, host, tok, C_GREEN, C_RESET, ms);
+                open_count++;
+                break;
+            case RESULT_REFUSED:
+                printf("  %s%-6s%s %s:%s  %srefused%s  %.1f ms\n",
+                       C_RED, tok, C_RESET, host, tok, C_RED, C_RESET, ms);
+                break;
+            case RESULT_TIMEOUT:
+                printf("  %s%-6s%s %s:%s  %stimeout%s\n",
+                       C_YELLOW, tok, C_RESET, host, tok, C_YELLOW, C_RESET);
+                break;
+            case RESULT_ERROR:
+                printf("  %s%-6s%s %s:%s  %serror%s\n",
+                       C_RED, tok, C_RESET, host, tok, C_RED, C_RESET);
+                break;
+            }
+        }
+
+        freeaddrinfo(res);
+    }
+
+    if (!csv)
+        printf("\n  %d/%d ports open\n\n", open_count, total);
+
+    return (open_count > 0) ? 0 : 1;
+}
+
 /* ── Main ── */
 
 int main(int argc, char **argv) {
@@ -373,6 +444,13 @@ int main(int argc, char **argv) {
     if (net_init() != 0) {
         fprintf(stderr, "Failed to initialize networking.\n");
         return 1;
+    }
+
+    /* Multi-port scan mode */
+    if (strchr(port, ',') != NULL) {
+        int ret = scan_ports(host, port, af, timeout_ms, csv);
+        net_cleanup();
+        return ret;
     }
 
     /* Resolve */

@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
+#include <math.h>
 
 /* ── Timing ── */
 
@@ -294,6 +295,7 @@ static void usage(const char *prog) {
         "  -4             Force IPv4\n"
         "  -6             Force IPv6\n"
         "  -T             Show timestamp on each line\n"
+        "  -q             Quiet mode — only show summary\n"
         "  -h             Show this help\n"
         "\n"
         "Examples:\n"
@@ -313,6 +315,7 @@ int main(int argc, char **argv) {
     int interval_ms = 1000;
     int af = AF_UNSPEC;
     int show_timestamp = 0;
+    int quiet = 0;
     int i;
 
     /* Parse args */
@@ -332,6 +335,8 @@ int main(int argc, char **argv) {
             af = AF_INET6;
         } else if (strcmp(argv[i], "-T") == 0) {
             show_timestamp = 1;
+        } else if (strcmp(argv[i], "-q") == 0) {
+            quiet = 1;
         } else if (argv[i][0] == '-') {
             fprintf(stderr, "Unknown option: %s\n", argv[i]);
             usage(argv[0]);
@@ -373,8 +378,9 @@ int main(int argc, char **argv) {
     char ipstr[INET6_ADDRSTRLEN];
     format_addr(res, ipstr, sizeof(ipstr));
 
-    printf("\n%sPORTPING%s %s%s:%s%s (%s)\n\n",
-           C_BOLD, C_RESET, C_BOLD, host, port, C_RESET, ipstr);
+    if (!quiet)
+        printf("\n%sPORTPING%s %s%s:%s%s (%s)\n\n",
+               C_BOLD, C_RESET, C_BOLD, host, port, C_RESET, ipstr);
 
     /* Ping loop */
     int seq = 0;
@@ -382,6 +388,7 @@ int main(int argc, char **argv) {
     int failed = 0;
     int refused = 0;
     double total_ms = 0;
+    double total_ms2 = 0;  /* sum of squares for jitter */
     double min_ms = 1e9;
     double max_ms = 0;
 
@@ -392,42 +399,51 @@ int main(int argc, char **argv) {
 
         switch (r) {
         case RESULT_OPEN:
-            if (show_timestamp) print_timestamp();
-            printf("  %s[%d]%s %s:%s  %sopen%s  %.1f ms\n",
-                   C_BOLD, seq, C_RESET, host, port,
-                   C_GREEN, C_RESET, ms);
+            if (!quiet) {
+                if (show_timestamp) print_timestamp();
+                printf("  %s[%d]%s %s:%s  %sopen%s  %.1f ms\n",
+                       C_BOLD, seq, C_RESET, host, port,
+                       C_GREEN, C_RESET, ms);
+            }
             success++;
             total_ms += ms;
+            total_ms2 += ms * ms;
             if (ms < min_ms) min_ms = ms;
             if (ms > max_ms) max_ms = ms;
             break;
 
         case RESULT_REFUSED:
-            if (show_timestamp) print_timestamp();
-            printf("  %s[%d]%s %s:%s  %srefused%s  %.1f ms\n",
-                   C_BOLD, seq, C_RESET, host, port,
-                   C_RED, C_RESET, ms);
+            if (!quiet) {
+                if (show_timestamp) print_timestamp();
+                printf("  %s[%d]%s %s:%s  %srefused%s  %.1f ms\n",
+                       C_BOLD, seq, C_RESET, host, port,
+                       C_RED, C_RESET, ms);
+            }
             refused++;
             break;
 
         case RESULT_TIMEOUT:
-            if (show_timestamp) print_timestamp();
-            printf("  %s[%d]%s %s:%s  %stimeout%s  >%d ms\n",
-                   C_BOLD, seq, C_RESET, host, port,
-                   C_YELLOW, C_RESET, timeout_ms);
+            if (!quiet) {
+                if (show_timestamp) print_timestamp();
+                printf("  %s[%d]%s %s:%s  %stimeout%s  >%d ms\n",
+                       C_BOLD, seq, C_RESET, host, port,
+                       C_YELLOW, C_RESET, timeout_ms);
+            }
             failed++;
             break;
 
         case RESULT_ERROR:
-            if (show_timestamp) print_timestamp();
-            printf("  %s[%d]%s %s:%s  %serror%s\n",
-                   C_BOLD, seq, C_RESET, host, port,
-                   C_RED, C_RESET);
+            if (!quiet) {
+                if (show_timestamp) print_timestamp();
+                printf("  %s[%d]%s %s:%s  %serror%s\n",
+                       C_BOLD, seq, C_RESET, host, port,
+                       C_RED, C_RESET);
+            }
             failed++;
             break;
         }
 
-        fflush(stdout);
+        if (!quiet) fflush(stdout);
 
         if (running && (count == 0 || seq < count))
             sleep_ms(interval_ms);
@@ -448,8 +464,13 @@ int main(int argc, char **argv) {
     printf("\n");
 
     if (success > 0) {
-        printf("rtt min/avg/max = %.1f/%.1f/%.1f ms\n",
-               min_ms, avg, max_ms);
+        double jitter = 0;
+        if (success > 1) {
+            double variance = (total_ms2 / success) - (avg * avg);
+            jitter = sqrt(variance > 0 ? variance : 0);
+        }
+        printf("rtt min/avg/max/jitter = %.1f/%.1f/%.1f/%.1f ms\n",
+               min_ms, avg, max_ms, jitter);
     }
 
     printf("\n");

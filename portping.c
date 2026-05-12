@@ -503,8 +503,11 @@ int main(int argc, char **argv) {
     }
 
     /* Resolve */
+    pp_timer_t dns_timer;
+    timer_start(&dns_timer);
     struct addrinfo *res;
     int rc = resolve(host, port, af, &res);
+    double dns_ms = timer_elapsed_ms(&dns_timer);
     if (rc != 0) {
         fprintf(stderr, "Cannot resolve %s: %s\n", host, gai_strerror(rc));
         net_cleanup();
@@ -517,8 +520,8 @@ int main(int argc, char **argv) {
     if (csv)
         printf("seq,host,port,ip,status,ms\n");
     else if (!quiet)
-        printf("\n%sPORTPING%s %s%s:%s%s (%s)\n\n",
-               C_BOLD, C_RESET, C_BOLD, host, port, C_RESET, ipstr);
+        printf("\n%sPORTPING%s %s%s:%s%s (%s) — DNS %.1f ms\n\n",
+               C_BOLD, C_RESET, C_BOLD, host, port, C_RESET, ipstr, dns_ms);
 
     /* Ping loop */
     pp_timer_t deadline_timer;

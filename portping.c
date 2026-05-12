@@ -125,10 +125,10 @@ static int set_nonblocking(SOCKET s) {
 
 /* ── Resolve ── */
 
-static int resolve(const char *host, const char *port, struct addrinfo **res) {
+static int resolve(const char *host, const char *port, int af, struct addrinfo **res) {
     struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_UNSPEC;
+    hints.ai_family = af;
     hints.ai_socktype = SOCK_STREAM;
     return getaddrinfo(host, port, &hints, res);
 }
@@ -277,6 +277,8 @@ static void usage(const char *prog) {
         "  -c <count>     Number of attempts (default: infinite)\n"
         "  -t <ms>        Timeout per attempt in ms (default: 2000)\n"
         "  -i <ms>        Interval between attempts in ms (default: 1000)\n"
+        "  -4             Force IPv4\n"
+        "  -6             Force IPv6\n"
         "  -h             Show this help\n"
         "\n"
         "Examples:\n"
@@ -294,6 +296,7 @@ int main(int argc, char **argv) {
     int count = 0;  /* 0 = infinite */
     int timeout_ms = 2000;
     int interval_ms = 1000;
+    int af = AF_UNSPEC;
     int i;
 
     /* Parse args */
@@ -307,6 +310,10 @@ int main(int argc, char **argv) {
             timeout_ms = atoi(argv[++i]);
         } else if (strcmp(argv[i], "-i") == 0 && i + 1 < argc) {
             interval_ms = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "-4") == 0) {
+            af = AF_INET;
+        } else if (strcmp(argv[i], "-6") == 0) {
+            af = AF_INET6;
         } else if (argv[i][0] == '-') {
             fprintf(stderr, "Unknown option: %s\n", argv[i]);
             usage(argv[0]);
@@ -338,7 +345,7 @@ int main(int argc, char **argv) {
 
     /* Resolve */
     struct addrinfo *res;
-    int rc = resolve(host, port, &res);
+    int rc = resolve(host, port, af, &res);
     if (rc != 0) {
         fprintf(stderr, "Cannot resolve %s: %s\n", host, gai_strerror(rc));
         net_cleanup();

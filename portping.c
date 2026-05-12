@@ -598,9 +598,39 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    /* Multi-port scan mode */
-    if (strchr(port, ',') != NULL) {
-        int ret = scan_ports(host, port, af, timeout_ms, csv);
+    /* Multi-port scan mode (comma or range) */
+    if (strchr(port, ',') != NULL || strchr(port, '-') != NULL) {
+        /* Expand ranges like 80-85 into 80,81,82,83,84,85 */
+        char expanded[4096] = {0};
+        char tmp[1024];
+        char *tok, *save;
+        strncpy(tmp, port, sizeof(tmp) - 1);
+        tmp[sizeof(tmp) - 1] = '\0';
+
+        for (tok = strtok_r(tmp, ",", &save); tok; tok = strtok_r(NULL, ",", &save)) {
+            char *dash = strchr(tok, '-');
+            if (dash && dash != tok) {
+                int start = atoi(tok);
+                int end = atoi(dash + 1);
+                if (start > 0 && end > 0 && end >= start && end - start < 1024) {
+                    int p;
+                    for (p = start; p <= end; p++) {
+                        char pbuf[8];
+                        snprintf(pbuf, sizeof(pbuf), "%d", p);
+                        if (expanded[0]) strncat(expanded, ",", sizeof(expanded) - strlen(expanded) - 1);
+                        strncat(expanded, pbuf, sizeof(expanded) - strlen(expanded) - 1);
+                    }
+                } else {
+                    if (expanded[0]) strncat(expanded, ",", sizeof(expanded) - strlen(expanded) - 1);
+                    strncat(expanded, tok, sizeof(expanded) - strlen(expanded) - 1);
+                }
+            } else {
+                if (expanded[0]) strncat(expanded, ",", sizeof(expanded) - strlen(expanded) - 1);
+                strncat(expanded, tok, sizeof(expanded) - strlen(expanded) - 1);
+            }
+        }
+
+        int ret = scan_ports(host, expanded, af, timeout_ms, csv);
         net_cleanup();
         return ret;
     }

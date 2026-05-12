@@ -65,8 +65,11 @@ Options:
   -T             Show timestamp on each line
   -q             Quiet mode — only show summary
   -b             Grab service banner after connect
+  -H <path>      HTTP health check (GET path, show status)
+  -A             Alert (beep) on state change
   -w <sec>       Stop after <sec> seconds total (deadline)
   --csv          Output in CSV format
+  --json         Output summary as JSON
   --no-color     Disable colored output
   -V, --version  Show version
   -h             Show help
@@ -90,14 +93,29 @@ portping -4 example.com 443
 # Scan multiple ports at once
 portping myserver.com 22,80,443,3306,8080
 
+# Port range scan
+portping myserver.com 8080-8090
+
+# Mixed ranges and individual ports
+portping myserver.com 22,80-85,443,8080-8082
+
 # Grab service banners (SSH, SMTP, FTP, etc.)
 portping -b -c 1 myserver.com 22
 
 # Run for exactly 30 seconds with timestamps
 portping -T -w 30 db-server 5432
 
+# HTTP health check
+portping -H /health -c 10 api-server 8080
+
+# JSON output for automation
+portping --json -c 5 prod-api 443
+
 # CSV output for monitoring
 portping --csv -c 100 prod-api 443 > log.csv
+
+# Alert when port state changes (beeps on DOWN/UP transitions)
+portping -A prod-db 5432
 
 # Quiet mode — just the summary
 portping -q -c 10 example.com 443

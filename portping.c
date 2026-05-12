@@ -265,6 +265,20 @@ static result_t tcp_ping(struct addrinfo *ai, int timeout_ms, double *elapsed) {
   #define C_BOLD   (use_color ? "\033[1m"  : "")
 #endif
 
+/* ── Timestamp ── */
+
+static void print_timestamp(void) {
+#ifdef _WIN32
+    SYSTEMTIME st;
+    GetLocalTime(&st);
+    printf("%02d:%02d:%02d ", st.wHour, st.wMinute, st.wSecond);
+#else
+    time_t now = time(NULL);
+    struct tm *tm = localtime(&now);
+    printf("%02d:%02d:%02d ", tm->tm_hour, tm->tm_min, tm->tm_sec);
+#endif
+}
+
 /* ── Usage ── */
 
 static void usage(const char *prog) {
@@ -279,6 +293,7 @@ static void usage(const char *prog) {
         "  -i <ms>        Interval between attempts in ms (default: 1000)\n"
         "  -4             Force IPv4\n"
         "  -6             Force IPv6\n"
+        "  -T             Show timestamp on each line\n"
         "  -h             Show this help\n"
         "\n"
         "Examples:\n"
@@ -297,6 +312,7 @@ int main(int argc, char **argv) {
     int timeout_ms = 2000;
     int interval_ms = 1000;
     int af = AF_UNSPEC;
+    int show_timestamp = 0;
     int i;
 
     /* Parse args */
@@ -314,6 +330,8 @@ int main(int argc, char **argv) {
             af = AF_INET;
         } else if (strcmp(argv[i], "-6") == 0) {
             af = AF_INET6;
+        } else if (strcmp(argv[i], "-T") == 0) {
+            show_timestamp = 1;
         } else if (argv[i][0] == '-') {
             fprintf(stderr, "Unknown option: %s\n", argv[i]);
             usage(argv[0]);
@@ -374,6 +392,7 @@ int main(int argc, char **argv) {
 
         switch (r) {
         case RESULT_OPEN:
+            if (show_timestamp) print_timestamp();
             printf("  %s[%d]%s %s:%s  %sopen%s  %.1f ms\n",
                    C_BOLD, seq, C_RESET, host, port,
                    C_GREEN, C_RESET, ms);
@@ -384,6 +403,7 @@ int main(int argc, char **argv) {
             break;
 
         case RESULT_REFUSED:
+            if (show_timestamp) print_timestamp();
             printf("  %s[%d]%s %s:%s  %srefused%s  %.1f ms\n",
                    C_BOLD, seq, C_RESET, host, port,
                    C_RED, C_RESET, ms);
@@ -391,6 +411,7 @@ int main(int argc, char **argv) {
             break;
 
         case RESULT_TIMEOUT:
+            if (show_timestamp) print_timestamp();
             printf("  %s[%d]%s %s:%s  %stimeout%s  >%d ms\n",
                    C_BOLD, seq, C_RESET, host, port,
                    C_YELLOW, C_RESET, timeout_ms);
@@ -398,6 +419,7 @@ int main(int argc, char **argv) {
             break;
 
         case RESULT_ERROR:
+            if (show_timestamp) print_timestamp();
             printf("  %s[%d]%s %s:%s  %serror%s\n",
                    C_BOLD, seq, C_RESET, host, port,
                    C_RED, C_RESET);

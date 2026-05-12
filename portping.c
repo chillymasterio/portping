@@ -441,6 +441,7 @@ static void usage(const char *prog) {
         "  -H <path>      HTTP health check (GET path, show status)\n"
         "  -w <sec>       Stop after <sec> seconds total (deadline)\n"
         "  --csv          Output in CSV format\n"
+        "  -A             Alert (beep) on state change\n"
         "  --json         Output summary as JSON\n"
         "  --no-color     Disable colored output\n"
         "  -V, --version  Show version\n"
@@ -536,6 +537,7 @@ int main(int argc, char **argv) {
     int banner_grab = 0;
     const char *http_path = NULL;
     int json = 0;
+    int alert_change = 0;
     int i;
 
     /* Parse args */
@@ -574,6 +576,8 @@ int main(int argc, char **argv) {
         } else if (strcmp(argv[i], "--json") == 0) {
             json = 1;
             quiet = 1;
+        } else if (strcmp(argv[i], "-A") == 0) {
+            alert_change = 1;
         } else if (argv[i][0] == '-') {
             fprintf(stderr, "Unknown option: %s\n", argv[i]);
             usage(argv[0]);
@@ -673,6 +677,8 @@ int main(int argc, char **argv) {
     double total_ms2 = 0;  /* sum of squares for jitter */
     double min_ms = 1e9;
     double max_ms = 0;
+    result_t prev_result = RESULT_ERROR;  /* no previous */
+    int first_probe = 1;
 
     while (running && (count == 0 || seq < count) &&
            (deadline_sec == 0 || timer_elapsed_ms(&deadline_timer) < deadline_sec * 1000.0)) {
@@ -761,6 +767,17 @@ int main(int argc, char **argv) {
             failed++;
             break;
         }
+
+        /* Alert on state change */
+        if (alert_change && !first_probe && r != prev_result) {
+            const char *from = (prev_result == RESULT_OPEN) ? "OPEN" :
+                               (prev_result == RESULT_REFUSED) ? "REFUSED" : "DOWN";
+            const char *to   = (r == RESULT_OPEN) ? "OPEN" :
+                               (r == RESULT_REFUSED) ? "REFUSED" : "DOWN";
+            fprintf(stderr, "\a*** STATE CHANGE: %s -> %s (seq %d) ***\n", from, to, seq);
+        }
+        prev_result = r;
+        first_probe = 0;
 
         if (!quiet) fflush(stdout);
 

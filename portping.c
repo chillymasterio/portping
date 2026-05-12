@@ -176,6 +176,60 @@ static int grab_banner(SOCKET s, char *buf, int maxlen, int timeout_ms) {
     return n;
 }
 
+/* ── HTTP health check ── */
+
+static int http_check(SOCKET s, const char *host, const char *path,
+                      char *status_out, int status_max) {
+    char req[512];
+    char resp[1024];
+    int n, total = 0;
+    fd_set rfds;
+    struct timeval tv;
+
+    n = snprintf(req, sizeof(req),
+        "GET %s HTTP/1.0\r\nHost: %s\r\nConnection: close\r\n\r\n",
+        path, host);
+    send(s, req, n, 0);
+
+    FD_ZERO(&rfds);
+    FD_SET(s, &rfds);
+    tv.tv_sec = 2;
+    tv.tv_usec = 0;
+
+    if (select((int)s + 1, &rfds, NULL, NULL, &tv) <= 0) {
+        snprintf(status_out, status_max, "no response");
+        return -1;
+    }
+
+    total = recv(s, resp, sizeof(resp) - 1, 0);
+    if (total <= 0) {
+        snprintf(status_out, status_max, "empty response");
+        return -1;
+    }
+    resp[total] = '\0';
+
+    /* Parse "HTTP/1.x NNN reason" */
+    if (strncmp(resp, "HTTP/", 5) == 0) {
+        char *sp = strchr(resp, ' ');
+        if (sp) {
+            int code = atoi(sp + 1);
+            /* Find reason phrase */
+            char *sp2 = strchr(sp + 1, ' ');
+            if (sp2) {
+                char *eol = strstr(sp2, "\r\n");
+                if (eol) *eol = '\0';
+                snprintf(status_out, status_max, "%d%s", code, sp2);
+            } else {
+                snprintf(status_out, status_max, "%d", code);
+            }
+            return code;
+        }
+    }
+
+    snprintf(status_out, status_max, "invalid HTTP");
+    return -1;
+}
+
 /* ── TCP connect with timeout ── */
 
 typedef enum {
@@ -267,6 +321,51 @@ static result_t tcp_ping(struct addrinfo *ai, int timeout_ms, double *elapsed) {
     return tcp_ping_ex(ai, timeout_ms, elapsed, NULL, 0);
 }
 
+/* Connect and return open socket (caller must close). Returns INVALID_SOCKET on failure. */
+static SOCKET tcp_connect(struct addrinfo *ai, int timeout_ms, double *elapsed) {
+    pp_timer_t t;
+    SOCKET s;
+    fd_set wfds, efds;
+    struct timeval tv;
+    int err;
+    socklen_t errlen;
+
+    s = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+    if (s == INVALID_SOCKET) return INVALID_SOCKET;
+
+    set_nonblocking(s);
+    timer_start(&t);
+
+    if (connect(s, ai->ai_addr, (int)ai->ai_addrlen) == 0) {
+        *elapsed = timer_elapsed_ms(&t);
+        return s;
+    }
+
+#ifdef _WIN32
+    if (WSAGetLastError() != WSAEWOULDBLOCK) { closesocket(s); return INVALID_SOCKET; }
+#else
+    if (errno != EINPROGRESS) { closesocket(s); return INVALID_SOCKET; }
+#endif
+
+    FD_ZERO(&wfds); FD_ZERO(&efds);
+    FD_SET(s, &wfds); FD_SET(s, &efds);
+    tv.tv_sec = timeout_ms / 1000;
+    tv.tv_usec = (timeout_ms % 1000) * 1000;
+
+    if (select((int)s + 1, NULL, &wfds, &efds, &tv) <= 0) {
+        *elapsed = timer_elapsed_ms(&t);
+        closesocket(s);
+        return INVALID_SOCKET;
+    }
+
+    *elapsed = timer_elapsed_ms(&t);
+    err = 0; errlen = sizeof(err);
+    getsockopt(s, SOL_SOCKET, SO_ERROR, (char *)&err, &errlen);
+
+    if (err != 0) { closesocket(s); return INVALID_SOCKET; }
+    return s;
+}
+
 /* ── Output formatting ── */
 
 #ifdef _WIN32
@@ -339,6 +438,7 @@ static void usage(const char *prog) {
         "  -T             Show timestamp on each line\n"
         "  -q             Quiet mode — only show summary\n"
         "  -b             Grab service banner after connect\n"
+        "  -H <path>      HTTP health check (GET path, show status)\n"
         "  -w <sec>       Stop after <sec> seconds total (deadline)\n"
         "  --csv          Output in CSV format\n"
         "  --no-color     Disable colored output\n"
@@ -433,6 +533,7 @@ int main(int argc, char **argv) {
     int csv = 0;
     int deadline_sec = 0;  /* 0 = no deadline */
     int banner_grab = 0;
+    const char *http_path = NULL;
     int i;
 
     /* Parse args */
@@ -463,6 +564,8 @@ int main(int argc, char **argv) {
             deadline_sec = atoi(argv[++i]);
         } else if (strcmp(argv[i], "-b") == 0) {
             banner_grab = 1;
+        } else if (strcmp(argv[i], "-H") == 0 && i + 1 < argc) {
+            http_path = argv[++i];
         } else if (strcmp(argv[i], "--csv") == 0) {
             csv = 1;
             quiet = 1;  /* csv implies no decorative output */
@@ -540,20 +643,42 @@ int main(int argc, char **argv) {
            (deadline_sec == 0 || timer_elapsed_ms(&deadline_timer) < deadline_sec * 1000.0)) {
         double ms = 0;
         char banner[256] = {0};
-        result_t r = banner_grab
-            ? tcp_ping_ex(res, timeout_ms, &ms, banner, sizeof(banner))
-            : tcp_ping(res, timeout_ms, &ms);
+        char http_status[128] = {0};
+        int http_code = 0;
+        result_t r;
+
+        if (http_path) {
+            SOCKET hs = tcp_connect(res, timeout_ms, &ms);
+            if (hs != INVALID_SOCKET) {
+                r = RESULT_OPEN;
+                http_code = http_check(hs, host, http_path, http_status, sizeof(http_status));
+                closesocket(hs);
+            } else {
+                r = RESULT_TIMEOUT;
+            }
+        } else if (banner_grab) {
+            r = tcp_ping_ex(res, timeout_ms, &ms, banner, sizeof(banner));
+        } else {
+            r = tcp_ping(res, timeout_ms, &ms);
+        }
         seq++;
 
         switch (r) {
         case RESULT_OPEN:
-            if (csv)
-                printf("%d,%s,%s,%s,open,%.1f\n", seq, host, port, ipstr, ms);
-            else if (!quiet) {
+            if (csv) {
+                if (http_path)
+                    printf("%d,%s,%s,%s,open,%.1f,%d\n", seq, host, port, ipstr, ms, http_code);
+                else
+                    printf("%d,%s,%s,%s,open,%.1f\n", seq, host, port, ipstr, ms);
+            } else if (!quiet) {
                 if (show_timestamp) print_timestamp();
                 printf("  %s[%d]%s %s:%s  %sopen%s  %.1f ms",
                        C_BOLD, seq, C_RESET, host, port,
                        C_GREEN, C_RESET, ms);
+                if (http_path && http_status[0]) {
+                    const char *hc = (http_code >= 200 && http_code < 400) ? C_GREEN : C_RED;
+                    printf("  %sHTTP %s%s", hc, http_status, C_RESET);
+                }
                 if (banner[0])
                     printf("  [%s]", banner);
                 printf("\n");

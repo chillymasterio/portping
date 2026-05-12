@@ -296,6 +296,7 @@ static void usage(const char *prog) {
         "  -6             Force IPv6\n"
         "  -T             Show timestamp on each line\n"
         "  -q             Quiet mode — only show summary\n"
+        "  -w <sec>       Stop after <sec> seconds total (deadline)\n"
         "  --csv          Output in CSV format\n"
         "  -h             Show this help\n"
         "\n"
@@ -318,6 +319,7 @@ int main(int argc, char **argv) {
     int show_timestamp = 0;
     int quiet = 0;
     int csv = 0;
+    int deadline_sec = 0;  /* 0 = no deadline */
     int i;
 
     /* Parse args */
@@ -339,6 +341,8 @@ int main(int argc, char **argv) {
             show_timestamp = 1;
         } else if (strcmp(argv[i], "-q") == 0) {
             quiet = 1;
+        } else if (strcmp(argv[i], "-w") == 0 && i + 1 < argc) {
+            deadline_sec = atoi(argv[++i]);
         } else if (strcmp(argv[i], "--csv") == 0) {
             csv = 1;
             quiet = 1;  /* csv implies no decorative output */
@@ -390,6 +394,9 @@ int main(int argc, char **argv) {
                C_BOLD, C_RESET, C_BOLD, host, port, C_RESET, ipstr);
 
     /* Ping loop */
+    pp_timer_t deadline_timer;
+    if (deadline_sec > 0) timer_start(&deadline_timer);
+
     int seq = 0;
     int success = 0;
     int failed = 0;
@@ -399,7 +406,8 @@ int main(int argc, char **argv) {
     double min_ms = 1e9;
     double max_ms = 0;
 
-    while (running && (count == 0 || seq < count)) {
+    while (running && (count == 0 || seq < count) &&
+           (deadline_sec == 0 || timer_elapsed_ms(&deadline_timer) < deadline_sec * 1000.0)) {
         double ms = 0;
         result_t r = tcp_ping(res, timeout_ms, &ms);
         seq++;

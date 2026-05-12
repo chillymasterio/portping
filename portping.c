@@ -148,6 +148,32 @@ static void format_addr(struct addrinfo *ai, char *buf, size_t len) {
     inet_ntop(ai->ai_family, addr, buf, (socklen_t)len);
 }
 
+/* ── Banner grab ── */
+
+static int grab_banner(SOCKET s, char *buf, int maxlen, int timeout_ms) {
+    fd_set rfds;
+    struct timeval tv;
+    int n;
+
+    FD_ZERO(&rfds);
+    FD_SET(s, &rfds);
+    tv.tv_sec = timeout_ms / 1000;
+    tv.tv_usec = (timeout_ms % 1000) * 1000;
+
+    if (select((int)s + 1, &rfds, NULL, NULL, &tv) <= 0)
+        return 0;
+
+    n = recv(s, buf, maxlen - 1, 0);
+    if (n <= 0) return 0;
+    buf[n] = '\0';
+
+    /* strip trailing newlines */
+    while (n > 0 && (buf[n-1] == '\n' || buf[n-1] == '\r'))
+        buf[--n] = '\0';
+
+    return n;
+}
+
 /* ── TCP connect with timeout ── */
 
 typedef enum {
@@ -157,7 +183,8 @@ typedef enum {
     RESULT_ERROR
 } result_t;
 
-static result_t tcp_ping(struct addrinfo *ai, int timeout_ms, double *elapsed) {
+static result_t tcp_ping_ex(struct addrinfo *ai, int timeout_ms, double *elapsed,
+                            char *banner, int banner_max) {
     pp_timer_t t;
     SOCKET s;
     fd_set wfds, efds;
@@ -176,6 +203,8 @@ static result_t tcp_ping(struct addrinfo *ai, int timeout_ms, double *elapsed) {
 
     if (connect(s, ai->ai_addr, (int)ai->ai_addrlen) == 0) {
         *elapsed = timer_elapsed_ms(&t);
+        if (banner && banner_max > 0)
+            grab_banner(s, banner, banner_max, 500);
         closesocket(s);
         return RESULT_OPEN;
     }
@@ -212,10 +241,12 @@ static result_t tcp_ping(struct addrinfo *ai, int timeout_ms, double *elapsed) {
     err = 0;
     errlen = sizeof(err);
     getsockopt(s, SOL_SOCKET, SO_ERROR, (char *)&err, &errlen);
-    closesocket(s);
 
-    if (err == 0)
+    if (err == 0) {
+        if (banner && banner_max > 0)
+            grab_banner(s, banner, banner_max, 500);
         ret = RESULT_OPEN;
+    }
 #ifdef _WIN32
     else if (err == WSAECONNREFUSED)
         ret = RESULT_REFUSED;
@@ -226,7 +257,12 @@ static result_t tcp_ping(struct addrinfo *ai, int timeout_ms, double *elapsed) {
     else
         ret = RESULT_TIMEOUT;
 
+    closesocket(s);
     return ret;
+}
+
+static result_t tcp_ping(struct addrinfo *ai, int timeout_ms, double *elapsed) {
+    return tcp_ping_ex(ai, timeout_ms, elapsed, NULL, 0);
 }
 
 /* ── Output formatting ── */
@@ -300,6 +336,7 @@ static void usage(const char *prog) {
         "  -6             Force IPv6\n"
         "  -T             Show timestamp on each line\n"
         "  -q             Quiet mode — only show summary\n"
+        "  -b             Grab service banner after connect\n"
         "  -w <sec>       Stop after <sec> seconds total (deadline)\n"
         "  --csv          Output in CSV format\n"
         "  -h             Show this help\n"
@@ -391,6 +428,7 @@ int main(int argc, char **argv) {
     int quiet = 0;
     int csv = 0;
     int deadline_sec = 0;  /* 0 = no deadline */
+    int banner_grab = 0;
     int i;
 
     /* Parse args */
@@ -414,6 +452,8 @@ int main(int argc, char **argv) {
             quiet = 1;
         } else if (strcmp(argv[i], "-w") == 0 && i + 1 < argc) {
             deadline_sec = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "-b") == 0) {
+            banner_grab = 1;
         } else if (strcmp(argv[i], "--csv") == 0) {
             csv = 1;
             quiet = 1;  /* csv implies no decorative output */
@@ -487,7 +527,10 @@ int main(int argc, char **argv) {
     while (running && (count == 0 || seq < count) &&
            (deadline_sec == 0 || timer_elapsed_ms(&deadline_timer) < deadline_sec * 1000.0)) {
         double ms = 0;
-        result_t r = tcp_ping(res, timeout_ms, &ms);
+        char banner[256] = {0};
+        result_t r = banner_grab
+            ? tcp_ping_ex(res, timeout_ms, &ms, banner, sizeof(banner))
+            : tcp_ping(res, timeout_ms, &ms);
         seq++;
 
         switch (r) {
@@ -496,9 +539,12 @@ int main(int argc, char **argv) {
                 printf("%d,%s,%s,%s,open,%.1f\n", seq, host, port, ipstr, ms);
             else if (!quiet) {
                 if (show_timestamp) print_timestamp();
-                printf("  %s[%d]%s %s:%s  %sopen%s  %.1f ms\n",
+                printf("  %s[%d]%s %s:%s  %sopen%s  %.1f ms",
                        C_BOLD, seq, C_RESET, host, port,
                        C_GREEN, C_RESET, ms);
+                if (banner[0])
+                    printf("  [%s]", banner);
+                printf("\n");
             }
             success++;
             total_ms += ms;

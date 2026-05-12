@@ -91,6 +91,8 @@
   }
 #endif
 
+#define PORTPING_VERSION "1.1.0"
+
 /* ── Globals ── */
 
 static volatile int running = 1;
@@ -339,6 +341,8 @@ static void usage(const char *prog) {
         "  -b             Grab service banner after connect\n"
         "  -w <sec>       Stop after <sec> seconds total (deadline)\n"
         "  --csv          Output in CSV format\n"
+        "  --no-color     Disable colored output\n"
+        "  -V, --version  Show version\n"
         "  -h             Show this help\n"
         "\n"
         "Examples:\n"
@@ -436,6 +440,11 @@ int main(int argc, char **argv) {
         if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
             usage(argv[0]);
             return 0;
+        } else if (strcmp(argv[i], "-V") == 0 || strcmp(argv[i], "--version") == 0) {
+            printf("portping %s\n", PORTPING_VERSION);
+            return 0;
+        } else if (strcmp(argv[i], "--no-color") == 0) {
+            use_color = 0;
         } else if (strcmp(argv[i], "-c") == 0 && i + 1 < argc) {
             count = atoi(argv[++i]);
         } else if (strcmp(argv[i], "-t") == 0 && i + 1 < argc) {

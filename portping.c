@@ -238,6 +238,22 @@ static int http_check(SOCKET s, const char *host, const char *path,
     return -1;
 }
 
+/* ── Source address binding ── */
+
+static const char *g_source_addr = NULL;
+
+static int bind_source(SOCKET s, int family) {
+    struct addrinfo hints, *res;
+    if (!g_source_addr) return 0;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = family;
+    hints.ai_socktype = SOCK_STREAM;
+    if (getaddrinfo(g_source_addr, NULL, &hints, &res) != 0) return -1;
+    int ret = bind(s, res->ai_addr, (int)res->ai_addrlen);
+    freeaddrinfo(res);
+    return ret;
+}
+
 /* ── TCP connect with timeout ── */
 
 typedef enum {
@@ -261,6 +277,7 @@ static result_t tcp_ping_ex(struct addrinfo *ai, int timeout_ms, double *elapsed
     if (s == INVALID_SOCKET)
         return RESULT_ERROR;
 
+    bind_source(s, ai->ai_family);
     set_nonblocking(s);
 
     timer_start(&t);
@@ -341,6 +358,7 @@ static SOCKET tcp_connect(struct addrinfo *ai, int timeout_ms, double *elapsed) 
     s = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
     if (s == INVALID_SOCKET) return INVALID_SOCKET;
 
+    bind_source(s, ai->ai_family);
     set_nonblocking(s);
     timer_start(&t);
 
@@ -598,6 +616,7 @@ int main(int argc, char **argv) {
     const char *log_file = NULL;
     int show_histogram = 0;
     const char *exec_cmd = NULL;
+    const char *source_addr = NULL;
     int i;
 
     /* Parse args */
@@ -646,6 +665,8 @@ int main(int argc, char **argv) {
             pass_count = atoi(argv[++i]);
         } else if (strcmp(argv[i], "--log") == 0 && i + 1 < argc) {
             log_file = argv[++i];
+        } else if (strcmp(argv[i], "-S") == 0 && i + 1 < argc) {
+            source_addr = argv[++i];
         } else if (strcmp(argv[i], "--exec") == 0 && i + 1 < argc) {
             exec_cmd = argv[++i];
         } else if (strcmp(argv[i], "-g") == 0) {
@@ -715,6 +736,8 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Failed to initialize networking.\n");
         return 1;
     }
+
+    if (source_addr) g_source_addr = source_addr;
 
     /* Check port presets */
     const char *preset = resolve_preset(port);

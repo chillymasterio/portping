@@ -618,6 +618,7 @@ int main(int argc, char **argv) {
     signal(SIGINT, handle_signal);
 #ifndef _WIN32
     signal(SIGPIPE, SIG_IGN);
+    signal(SIGTERM, handle_signal);
 #endif
 
     if (net_init() != 0) {

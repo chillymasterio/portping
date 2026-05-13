@@ -462,6 +462,20 @@ static void usage(const char *prog) {
         "\n", prog, prog, prog, prog);
 }
 
+/* ── Port presets ── */
+
+static const char *resolve_preset(const char *port) {
+    if (strcmp(port, "--web") == 0)
+        return "80,443,8080,8443";
+    if (strcmp(port, "--db") == 0)
+        return "3306,5432,1433,27017,6379,5984";
+    if (strcmp(port, "--mail") == 0)
+        return "25,465,587,993,995,143,110";
+    if (strcmp(port, "--remote") == 0)
+        return "22,23,3389,5900,5901";
+    return NULL;
+}
+
 /* ── Port scan (comma-separated ports) ── */
 
 static int scan_ports(const char *host, const char *portlist, int af,
@@ -645,6 +659,10 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Failed to initialize networking.\n");
         return 1;
     }
+
+    /* Check port presets */
+    const char *preset = resolve_preset(port);
+    if (preset) port = preset;
 
     /* Multi-port scan mode (comma or range) */
     if (strchr(port, ',') != NULL || strchr(port, '-') != NULL) {

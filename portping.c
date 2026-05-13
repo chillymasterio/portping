@@ -617,6 +617,7 @@ int main(int argc, char **argv) {
     int show_histogram = 0;
     const char *exec_cmd = NULL;
     const char *source_addr = NULL;
+    int show_loss_only = 0;
     int i;
 
     /* Parse args */
@@ -675,6 +676,8 @@ int main(int argc, char **argv) {
             scan_filter = SCAN_OPEN;
         } else if (strcmp(argv[i], "--only-closed") == 0) {
             scan_filter = SCAN_CLOSED;
+        } else if (strcmp(argv[i], "--loss") == 0) {
+            show_loss_only = 1;
         } else if (argv[i][0] == '-') {
             fprintf(stderr, "Unknown option: %s\n", argv[i]);
             usage(argv[0]);
@@ -866,7 +869,7 @@ int main(int argc, char **argv) {
                     printf("%d,%s,%s,%s,open,%.1f,%d\n", seq, host, port, ipstr, ms, http_code);
                 else
                     printf("%d,%s,%s,%s,open,%.1f\n", seq, host, port, ipstr, ms);
-            } else if (!quiet) {
+            } else if (!quiet && !show_loss_only) {
                 if (show_timestamp) print_timestamp();
                 printf("  %s[%d]%s %s:%s  %sopen%s  %.1f ms",
                        C_BOLD, seq, C_RESET, host, port,

@@ -625,6 +625,7 @@ int main(int argc, char **argv) {
     int show_loss_only = 0;
     int until_open = 0;
     int until_closed = 0;
+    int exp_backoff = 0;
     int i;
 
     /* Parse args */
@@ -683,6 +684,8 @@ int main(int argc, char **argv) {
             scan_filter = SCAN_OPEN;
         } else if (strcmp(argv[i], "--only-closed") == 0) {
             scan_filter = SCAN_CLOSED;
+        } else if (strcmp(argv[i], "--backoff") == 0) {
+            exp_backoff = 1;
         } else if (strcmp(argv[i], "--until-open") == 0) {
             until_open = 1;
         } else if (strcmp(argv[i], "--until-closed") == 0) {
@@ -1009,8 +1012,14 @@ int main(int argc, char **argv) {
 
         if (!quiet) fflush(stdout);
 
-        if (running && (count == 0 || seq < count))
-            sleep_ms(interval_ms);
+        if (running && (count == 0 || seq < count)) {
+            int sleep_time = interval_ms;
+            if (exp_backoff && r != RESULT_OPEN) {
+                sleep_time = interval_ms * (1 << (consec_fail < 6 ? consec_fail : 6));
+                if (sleep_time > 60000) sleep_time = 60000;
+            }
+            sleep_ms(sleep_time);
+        }
     }
 
     if (logfp) fclose(logfp);

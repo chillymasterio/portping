@@ -546,6 +546,10 @@ int main(int argc, char **argv) {
     const char *http_path = NULL;
     int json = 0;
     int alert_change = 0;
+    int show_service = 0;
+    int fail_count = 0;   /* exit after N consecutive failures */
+    int pass_count = 0;   /* exit after N consecutive successes */
+    const char *log_file = NULL;
     int i;
 
     /* Parse args */
@@ -586,6 +590,14 @@ int main(int argc, char **argv) {
             quiet = 1;
         } else if (strcmp(argv[i], "-A") == 0) {
             alert_change = 1;
+        } else if (strcmp(argv[i], "-p") == 0) {
+            show_service = 1;
+        } else if (strcmp(argv[i], "--fail") == 0 && i + 1 < argc) {
+            fail_count = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "--pass") == 0 && i + 1 < argc) {
+            pass_count = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "--log") == 0 && i + 1 < argc) {
+            log_file = argv[++i];
         } else if (argv[i][0] == '-') {
             fprintf(stderr, "Unknown option: %s\n", argv[i]);
             usage(argv[0]);
@@ -686,11 +698,16 @@ int main(int argc, char **argv) {
     char ipstr[INET6_ADDRSTRLEN];
     format_addr(res, ipstr, sizeof(ipstr));
 
+    const char *svc_name = show_service ? lookup_service(port) : NULL;
+
     if (csv)
         printf("seq,host,port,ip,status,ms\n");
-    else if (!quiet)
-        printf("\n%sPORTPING%s %s%s:%s%s (%s) — DNS %.1f ms\n\n",
-               C_BOLD, C_RESET, C_BOLD, host, port, C_RESET, ipstr, dns_ms);
+    else if (!quiet) {
+        printf("\n%sPORTPING%s %s%s:%s%s", C_BOLD, C_RESET, C_BOLD, host, port, C_RESET);
+        if (svc_name) printf(" (%s/%s)", ipstr, svc_name);
+        else printf(" (%s)", ipstr);
+        printf(" — DNS %.1f ms\n\n", dns_ms);
+    }
 
     /* Ping loop */
     pp_timer_t deadline_timer;
@@ -706,6 +723,15 @@ int main(int argc, char **argv) {
     double max_ms = 0;
     result_t prev_result = RESULT_ERROR;  /* no previous */
     int first_probe = 1;
+    int consec_fail = 0;
+    int consec_pass = 0;
+    FILE *logfp = NULL;
+
+    if (log_file) {
+        logfp = fopen(log_file, "a");
+        if (!logfp)
+            fprintf(stderr, "Warning: cannot open log file '%s'\n", log_file);
+    }
 
     while (running && (count == 0 || seq < count) &&
            (deadline_sec == 0 || timer_elapsed_ms(&deadline_timer) < deadline_sec * 1000.0)) {
@@ -806,11 +832,42 @@ int main(int argc, char **argv) {
         prev_result = r;
         first_probe = 0;
 
+        /* Consecutive pass/fail tracking */
+        if (r == RESULT_OPEN) {
+            consec_pass++;
+            consec_fail = 0;
+        } else {
+            consec_fail++;
+            consec_pass = 0;
+        }
+        if (fail_count > 0 && consec_fail >= fail_count) {
+            if (!quiet) fprintf(stderr, "Exiting: %d consecutive failures\n", fail_count);
+            running = 0;
+        }
+        if (pass_count > 0 && consec_pass >= pass_count) {
+            if (!quiet) fprintf(stderr, "Exiting: %d consecutive successes\n", pass_count);
+            running = 0;
+        }
+
+        /* Log to file */
+        if (logfp) {
+            time_t now = time(NULL);
+            char tbuf[32];
+            strftime(tbuf, sizeof(tbuf), "%Y-%m-%d %H:%M:%S", localtime(&now));
+            const char *st = (r == RESULT_OPEN) ? "open" :
+                             (r == RESULT_REFUSED) ? "refused" :
+                             (r == RESULT_TIMEOUT) ? "timeout" : "error";
+            fprintf(logfp, "%s %s:%s %s %.1f\n", tbuf, host, port, st, ms);
+            fflush(logfp);
+        }
+
         if (!quiet) fflush(stdout);
 
         if (running && (count == 0 || seq < count))
             sleep_ms(interval_ms);
     }
+
+    if (logfp) fclose(logfp);
 
     /* Summary */
     int total = success + failed + refused;

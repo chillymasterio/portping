@@ -1,0 +1,63 @@
+# Changelog
+
+## [2.0.0] - 2026-05-13
+
+### Added
+- `-4` / `-6` flags to force IPv4 or IPv6
+- `-T` flag to show timestamps on each probe line
+- `-q` quiet mode (summary only)
+- `-p` flag to show service names for ports
+- `-r` flag for reverse DNS lookup display
+- `-g` flag for RTT distribution histogram
+- `-b` flag for service banner grabbing
+- `-H <path>` for HTTP health check with status display
+- `-A` flag for audible alert on state change
+- `-S <addr>` to bind to specific source address
+- `-w <sec>` total deadline in seconds
+- `--csv` output mode for monitoring integration
+- `--json` output mode with full statistics
+- `--exec <cmd>` to run command on state change
+- `--log <file>` to append results to log file
+- `--fail <n>` exit after N consecutive failures
+- `--pass <n>` exit after N consecutive successes
+- `--until-open` / `--until-closed` wait modes
+- `--backoff` exponential retry delay on failures
+- `--loss` flag to only show failed probes
+- `--no-summary` to suppress summary statistics
+- `--no-color` to disable ANSI colors
+- `--nodelay` to set TCP_NODELAY on sockets
+- `--count-only` for scriptable open port count
+- `--only-open` / `--only-closed` scan filters
+- Port presets: `--web`, `--db`, `--mail`, `--remote`
+- Multi-port scan with comma-separated ports
+- Port range support (e.g., `80-90`)
+- Mixed port ranges and lists (e.g., `22,80-85,443`)
+- `host:port` single-argument syntax
+- Service name as port argument (e.g., `https`)
+- Percentile statistics (p50/p90/p95/p99)
+- Jitter (standard deviation) in RTT stats
+- DNS resolution time display
+- Session duration in summary
+- Color-coded loss percentage
+- Service names in multi-port scan output
+- Makefile for non-CMake builds
+
+### Changed
+- RTT summary now shows min/avg/max/jitter instead of min/avg/max
+- JSON output includes percentiles and duration
+
+### Fixed
+- Input validation for timeout, interval, count, deadline
+- Proper SIGTERM handling alongside SIGINT
+- `timer_t` renamed to `pp_timer_t` to avoid POSIX conflict
+
+## [1.0.0] - 2026-05-13
+
+### Added
+- Initial release
+- Cross-platform TCP port connectivity checker
+- Non-blocking connect with configurable timeout
+- Color terminal output with Windows VT100 detection
+- Min/avg/max RTT statistics
+- Scriptable exit codes (0 = success, 1 = all failed)
+- `-c`, `-t`, `-i` flags

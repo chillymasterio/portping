@@ -808,6 +808,8 @@ int main(int argc, char **argv) {
 
     /* Ping loop */
     pp_timer_t deadline_timer;
+    pp_timer_t session_timer;
+    timer_start(&session_timer);
     if (deadline_sec > 0) timer_start(&deadline_timer);
 
     int seq = 0;
@@ -1022,14 +1024,18 @@ int main(int argc, char **argv) {
         goto cleanup;
     }
 
+    double session_secs = timer_elapsed_ms(&session_timer) / 1000.0;
+
     printf("\n--- %s:%s portping statistics ---\n", host, port);
     printf("%d attempts, %s%d open%s, %d refused, %d timeout/error",
            total, C_GREEN, success, C_RESET, refused, failed);
 
-    if (total > 0)
-        printf(" (%.0f%% loss)", loss);
+    if (total > 0) {
+        const char *lc = (loss == 0) ? C_GREEN : (loss < 50) ? C_YELLOW : C_RED;
+        printf(" (%s%.0f%% loss%s)", lc, loss, C_RESET);
+    }
 
-    printf("\n");
+    printf(", time %.1fs\n", session_secs);
 
     if (success > 0) {
         double jitter = 0;

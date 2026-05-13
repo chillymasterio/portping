@@ -992,6 +992,8 @@ int main(int argc, char **argv) {
     double loss = total > 0 ? (double)(failed + refused) / total * 100.0 : 0;
     double avg = success > 0 ? total_ms / success : 0;
 
+    double session_secs = timer_elapsed_ms(&session_timer) / 1000.0;
+
     if (csv) goto cleanup;
 
     if (json) {
@@ -1000,6 +1002,8 @@ int main(int argc, char **argv) {
             double variance = (total_ms2 / success) - (avg * avg);
             jitter = sqrt(variance > 0 ? variance : 0);
         }
+        if (rtt_samples && rtt_count > 1)
+            qsort(rtt_samples, rtt_count, sizeof(double), cmp_double);
         printf("{\n");
         printf("  \"host\": \"%s\",\n", host);
         printf("  \"port\": %s,\n", port);
@@ -1009,11 +1013,20 @@ int main(int argc, char **argv) {
         printf("  \"refused\": %d,\n", refused);
         printf("  \"failed\": %d,\n", failed);
         printf("  \"loss_pct\": %.1f,\n", loss);
+        printf("  \"duration_sec\": %.1f,\n", session_secs);
         if (success > 0) {
             printf("  \"rtt_min\": %.1f,\n", min_ms);
             printf("  \"rtt_avg\": %.1f,\n", avg);
             printf("  \"rtt_max\": %.1f,\n", max_ms);
-            printf("  \"rtt_jitter\": %.1f\n", jitter);
+            printf("  \"rtt_jitter\": %.1f,\n", jitter);
+            if (rtt_samples && rtt_count > 1) {
+                printf("  \"rtt_p50\": %.1f,\n", percentile(rtt_samples, rtt_count, 50));
+                printf("  \"rtt_p90\": %.1f,\n", percentile(rtt_samples, rtt_count, 90));
+                printf("  \"rtt_p95\": %.1f,\n", percentile(rtt_samples, rtt_count, 95));
+                printf("  \"rtt_p99\": %.1f\n", percentile(rtt_samples, rtt_count, 99));
+            } else {
+                printf("  \"rtt_p50\": %.1f\n", avg);
+            }
         } else {
             printf("  \"rtt_min\": null,\n");
             printf("  \"rtt_avg\": null,\n");
@@ -1023,8 +1036,6 @@ int main(int argc, char **argv) {
         printf("}\n");
         goto cleanup;
     }
-
-    double session_secs = timer_elapsed_ms(&session_timer) / 1000.0;
 
     printf("\n--- %s:%s portping statistics ---\n", host, port);
     printf("%d attempts, %s%d open%s, %d refused, %d timeout/error",

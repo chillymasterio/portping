@@ -665,6 +665,20 @@ int main(int argc, char **argv) {
         }
     }
 
+    /* Support host:port syntax */
+    static char host_buf[256];
+    if (host && !port) {
+        const char *colon = strrchr(host, ':');
+        if (colon && colon != host) {
+            size_t hlen = colon - host;
+            if (hlen >= sizeof(host_buf)) hlen = sizeof(host_buf) - 1;
+            memcpy(host_buf, host, hlen);
+            host_buf[hlen] = '\0';
+            host = host_buf;
+            port = colon + 1;
+        }
+    }
+
     if (!host || !port) {
         usage(argv[0]);
         return 1;

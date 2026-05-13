@@ -634,6 +634,7 @@ int main(int argc, char **argv) {
     int until_closed = 0;
     int exp_backoff = 0;
     int show_rdns = 0;
+    int no_summary = 0;
     int i;
 
     /* Parse args */
@@ -692,6 +693,8 @@ int main(int argc, char **argv) {
             scan_filter = SCAN_OPEN;
         } else if (strcmp(argv[i], "--only-closed") == 0) {
             scan_filter = SCAN_CLOSED;
+        } else if (strcmp(argv[i], "--no-summary") == 0) {
+            no_summary = 1;
         } else if (strcmp(argv[i], "-r") == 0) {
             show_rdns = 1;
         } else if (strcmp(argv[i], "--backoff") == 0) {
@@ -1045,7 +1048,7 @@ int main(int argc, char **argv) {
 
     double session_secs = timer_elapsed_ms(&session_timer) / 1000.0;
 
-    if (csv) goto cleanup;
+    if (csv || no_summary) goto cleanup;
 
     if (json) {
         double jitter = 0;

@@ -562,22 +562,24 @@ static int scan_ports(const char *host, const char *portlist, int af,
             if (scan_filter == SCAN_CLOSED && r == RESULT_OPEN) show = 0;
 
             if (show) {
+                const char *sn = lookup_service(tok);
+                const char *svc = sn ? sn : "";
                 switch (r) {
                 case RESULT_OPEN:
-                    printf("  %s%-6s%s %s:%s  %sopen%s     %.1f ms\n",
-                           C_GREEN, tok, C_RESET, host, tok, C_GREEN, C_RESET, ms);
+                    printf("  %s%-6s%s %-8s %s:%s  %sopen%s     %.1f ms\n",
+                           C_GREEN, tok, C_RESET, svc, host, tok, C_GREEN, C_RESET, ms);
                     break;
                 case RESULT_REFUSED:
-                    printf("  %s%-6s%s %s:%s  %srefused%s  %.1f ms\n",
-                           C_RED, tok, C_RESET, host, tok, C_RED, C_RESET, ms);
+                    printf("  %s%-6s%s %-8s %s:%s  %srefused%s  %.1f ms\n",
+                           C_RED, tok, C_RESET, svc, host, tok, C_RED, C_RESET, ms);
                     break;
                 case RESULT_TIMEOUT:
-                    printf("  %s%-6s%s %s:%s  %stimeout%s\n",
-                           C_YELLOW, tok, C_RESET, host, tok, C_YELLOW, C_RESET);
+                    printf("  %s%-6s%s %-8s %s:%s  %stimeout%s\n",
+                           C_YELLOW, tok, C_RESET, svc, host, tok, C_YELLOW, C_RESET);
                     break;
                 case RESULT_ERROR:
-                    printf("  %s%-6s%s %s:%s  %serror%s\n",
-                           C_RED, tok, C_RESET, host, tok, C_RED, C_RESET);
+                    printf("  %s%-6s%s %-8s %s:%s  %serror%s\n",
+                           C_RED, tok, C_RESET, svc, host, tok, C_RED, C_RESET);
                     break;
                 }
             }

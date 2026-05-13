@@ -151,6 +151,13 @@ static void format_addr(struct addrinfo *ai, char *buf, size_t len) {
     inet_ntop(ai->ai_family, addr, buf, (socklen_t)len);
 }
 
+/* ── Service name lookup ── */
+
+static const char *lookup_service(const char *port) {
+    struct servent *se = getservbyport(htons((unsigned short)atoi(port)), "tcp");
+    return se ? se->s_name : NULL;
+}
+
 /* ── Banner grab ── */
 
 static int grab_banner(SOCKET s, char *buf, int maxlen, int timeout_ms) {

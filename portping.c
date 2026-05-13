@@ -597,6 +597,7 @@ int main(int argc, char **argv) {
     int pass_count = 0;   /* exit after N consecutive successes */
     const char *log_file = NULL;
     int show_histogram = 0;
+    const char *exec_cmd = NULL;
     int i;
 
     /* Parse args */
@@ -645,6 +646,8 @@ int main(int argc, char **argv) {
             pass_count = atoi(argv[++i]);
         } else if (strcmp(argv[i], "--log") == 0 && i + 1 < argc) {
             log_file = argv[++i];
+        } else if (strcmp(argv[i], "--exec") == 0 && i + 1 < argc) {
+            exec_cmd = argv[++i];
         } else if (strcmp(argv[i], "-g") == 0) {
             show_histogram = 1;
         } else if (strcmp(argv[i], "--only-open") == 0) {
@@ -897,6 +900,13 @@ int main(int argc, char **argv) {
             const char *to   = (r == RESULT_OPEN) ? "OPEN" :
                                (r == RESULT_REFUSED) ? "REFUSED" : "DOWN";
             fprintf(stderr, "\a*** STATE CHANGE: %s -> %s (seq %d) ***\n", from, to, seq);
+
+            if (exec_cmd) {
+                char cmd_buf[1024];
+                snprintf(cmd_buf, sizeof(cmd_buf), "%s %s %s %s %s",
+                         exec_cmd, host, port, from, to);
+                system(cmd_buf);
+            }
         }
         prev_result = r;
         first_probe = 0;

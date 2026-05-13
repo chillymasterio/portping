@@ -623,6 +623,8 @@ int main(int argc, char **argv) {
     const char *exec_cmd = NULL;
     const char *source_addr = NULL;
     int show_loss_only = 0;
+    int until_open = 0;
+    int until_closed = 0;
     int i;
 
     /* Parse args */
@@ -681,6 +683,10 @@ int main(int argc, char **argv) {
             scan_filter = SCAN_OPEN;
         } else if (strcmp(argv[i], "--only-closed") == 0) {
             scan_filter = SCAN_CLOSED;
+        } else if (strcmp(argv[i], "--until-open") == 0) {
+            until_open = 1;
+        } else if (strcmp(argv[i], "--until-closed") == 0) {
+            until_closed = 1;
         } else if (strcmp(argv[i], "--count-only") == 0) {
             scan_count_only = 1;
         } else if (strcmp(argv[i], "--loss") == 0) {
@@ -976,6 +982,8 @@ int main(int argc, char **argv) {
             if (!quiet) fprintf(stderr, "Exiting: %d consecutive successes\n", pass_count);
             running = 0;
         }
+        if (until_open && r == RESULT_OPEN) running = 0;
+        if (until_closed && r != RESULT_OPEN) running = 0;
 
         /* Log to file */
         if (logfp) {

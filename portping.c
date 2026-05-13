@@ -755,6 +755,16 @@ int main(int argc, char **argv) {
 
     if (source_addr) g_source_addr = source_addr;
 
+    /* Resolve service name to port number if needed */
+    static char port_num_buf[8];
+    if (port && !strchr(port, ',') && !strchr(port, '-') && atoi(port) == 0) {
+        struct servent *se = getservbyname(port, "tcp");
+        if (se) {
+            snprintf(port_num_buf, sizeof(port_num_buf), "%d", ntohs(se->s_port));
+            port = port_num_buf;
+        }
+    }
+
     /* Check port presets */
     const char *preset = resolve_preset(port);
     if (preset) port = preset;

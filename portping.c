@@ -478,6 +478,14 @@ static const char *resolve_preset(const char *port) {
 
 /* ── Port scan (comma-separated ports) ── */
 
+typedef enum {
+    SCAN_ALL,
+    SCAN_OPEN,
+    SCAN_CLOSED
+} scan_filter_t;
+
+static scan_filter_t scan_filter = SCAN_ALL;
+
 static int scan_ports(const char *host, const char *portlist, int af,
                       int timeout_ms, int csv) {
     char buf[1024];
@@ -513,25 +521,31 @@ static int scan_ports(const char *host, const char *portlist, int af,
                                  (r == RESULT_TIMEOUT) ? "timeout" : "error";
             printf("%s,%s,%s,%s,%.1f\n", host, tok, ipstr, status, ms);
         } else {
-            switch (r) {
-            case RESULT_OPEN:
-                printf("  %s%-6s%s %s:%s  %sopen%s     %.1f ms\n",
-                       C_GREEN, tok, C_RESET, host, tok, C_GREEN, C_RESET, ms);
-                open_count++;
-                break;
-            case RESULT_REFUSED:
-                printf("  %s%-6s%s %s:%s  %srefused%s  %.1f ms\n",
-                       C_RED, tok, C_RESET, host, tok, C_RED, C_RESET, ms);
-                break;
-            case RESULT_TIMEOUT:
-                printf("  %s%-6s%s %s:%s  %stimeout%s\n",
-                       C_YELLOW, tok, C_RESET, host, tok, C_YELLOW, C_RESET);
-                break;
-            case RESULT_ERROR:
-                printf("  %s%-6s%s %s:%s  %serror%s\n",
-                       C_RED, tok, C_RESET, host, tok, C_RED, C_RESET);
-                break;
+            int show = 1;
+            if (scan_filter == SCAN_OPEN && r != RESULT_OPEN) show = 0;
+            if (scan_filter == SCAN_CLOSED && r == RESULT_OPEN) show = 0;
+
+            if (show) {
+                switch (r) {
+                case RESULT_OPEN:
+                    printf("  %s%-6s%s %s:%s  %sopen%s     %.1f ms\n",
+                           C_GREEN, tok, C_RESET, host, tok, C_GREEN, C_RESET, ms);
+                    break;
+                case RESULT_REFUSED:
+                    printf("  %s%-6s%s %s:%s  %srefused%s  %.1f ms\n",
+                           C_RED, tok, C_RESET, host, tok, C_RED, C_RESET, ms);
+                    break;
+                case RESULT_TIMEOUT:
+                    printf("  %s%-6s%s %s:%s  %stimeout%s\n",
+                           C_YELLOW, tok, C_RESET, host, tok, C_YELLOW, C_RESET);
+                    break;
+                case RESULT_ERROR:
+                    printf("  %s%-6s%s %s:%s  %serror%s\n",
+                           C_RED, tok, C_RESET, host, tok, C_RED, C_RESET);
+                    break;
+                }
             }
+            if (r == RESULT_OPEN) open_count++;
         }
 
         freeaddrinfo(res);
@@ -612,6 +626,10 @@ int main(int argc, char **argv) {
             pass_count = atoi(argv[++i]);
         } else if (strcmp(argv[i], "--log") == 0 && i + 1 < argc) {
             log_file = argv[++i];
+        } else if (strcmp(argv[i], "--only-open") == 0) {
+            scan_filter = SCAN_OPEN;
+        } else if (strcmp(argv[i], "--only-closed") == 0) {
+            scan_filter = SCAN_CLOSED;
         } else if (argv[i][0] == '-') {
             fprintf(stderr, "Unknown option: %s\n", argv[i]);
             usage(argv[0]);

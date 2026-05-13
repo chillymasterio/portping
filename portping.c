@@ -15,6 +15,7 @@
   #include <sys/socket.h>
   #include <sys/select.h>
   #include <netinet/in.h>
+  #include <netinet/tcp.h>
   #include <arpa/inet.h>
   #include <netdb.h>
   #include <unistd.h>
@@ -248,6 +249,7 @@ static int http_check(SOCKET s, const char *host, const char *path,
 /* ── Source address binding ── */
 
 static const char *g_source_addr = NULL;
+static int g_tcp_nodelay = 0;
 
 static int bind_source(SOCKET s, int family) {
     struct addrinfo hints, *res;
@@ -285,6 +287,10 @@ static result_t tcp_ping_ex(struct addrinfo *ai, int timeout_ms, double *elapsed
         return RESULT_ERROR;
 
     bind_source(s, ai->ai_family);
+    if (g_tcp_nodelay) {
+        int one = 1;
+        setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (char *)&one, sizeof(one));
+    }
     set_nonblocking(s);
 
     timer_start(&t);
@@ -366,6 +372,10 @@ static SOCKET tcp_connect(struct addrinfo *ai, int timeout_ms, double *elapsed) 
     if (s == INVALID_SOCKET) return INVALID_SOCKET;
 
     bind_source(s, ai->ai_family);
+    if (g_tcp_nodelay) {
+        int one = 1;
+        setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (char *)&one, sizeof(one));
+    }
     set_nonblocking(s);
     timer_start(&t);
 
@@ -725,6 +735,8 @@ int main(int argc, char **argv) {
             scan_filter = SCAN_OPEN;
         } else if (strcmp(argv[i], "--only-closed") == 0) {
             scan_filter = SCAN_CLOSED;
+        } else if (strcmp(argv[i], "--nodelay") == 0) {
+            g_tcp_nodelay = 1;
         } else if (strcmp(argv[i], "--no-summary") == 0) {
             no_summary = 1;
         } else if (strcmp(argv[i], "-r") == 0) {

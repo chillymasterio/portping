@@ -594,6 +594,24 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    /* Validate arguments */
+    if (timeout_ms <= 0) {
+        fprintf(stderr, "Error: timeout must be positive (got %d)\n", timeout_ms);
+        return 1;
+    }
+    if (interval_ms <= 0) {
+        fprintf(stderr, "Error: interval must be positive (got %d)\n", interval_ms);
+        return 1;
+    }
+    if (count < 0) {
+        fprintf(stderr, "Error: count must be non-negative (got %d)\n", count);
+        return 1;
+    }
+    if (deadline_sec < 0) {
+        fprintf(stderr, "Error: deadline must be non-negative (got %d)\n", deadline_sec);
+        return 1;
+    }
+
     /* Init */
     detect_color();
     timer_init();

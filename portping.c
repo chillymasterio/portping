@@ -521,6 +521,7 @@ typedef enum {
 } scan_filter_t;
 
 static scan_filter_t scan_filter = SCAN_ALL;
+static int scan_count_only = 0;
 
 static int scan_ports(const char *host, const char *portlist, int af,
                       int timeout_ms, int csv) {
@@ -533,7 +534,7 @@ static int scan_ports(const char *host, const char *portlist, int af,
 
     if (csv)
         printf("host,port,ip,status,ms\n");
-    else
+    else if (!scan_count_only)
         printf("\n  Scanning %s ports: %s\n\n", host, portlist);
 
     for (tok = strtok_r(buf, ",", &save); tok; tok = strtok_r(NULL, ",", &save)) {
@@ -557,7 +558,7 @@ static int scan_ports(const char *host, const char *portlist, int af,
                                  (r == RESULT_TIMEOUT) ? "timeout" : "error";
             printf("%s,%s,%s,%s,%.1f\n", host, tok, ipstr, status, ms);
         } else {
-            int show = 1;
+            int show = !scan_count_only;
             if (scan_filter == SCAN_OPEN && r != RESULT_OPEN) show = 0;
             if (scan_filter == SCAN_CLOSED && r == RESULT_OPEN) show = 0;
 
@@ -589,7 +590,9 @@ static int scan_ports(const char *host, const char *portlist, int af,
         freeaddrinfo(res);
     }
 
-    if (!csv)
+    if (scan_count_only)
+        printf("%d\n", open_count);
+    else if (!csv)
         printf("\n  %d/%d ports open\n\n", open_count, total);
 
     return (open_count > 0) ? 0 : 1;
@@ -678,6 +681,8 @@ int main(int argc, char **argv) {
             scan_filter = SCAN_OPEN;
         } else if (strcmp(argv[i], "--only-closed") == 0) {
             scan_filter = SCAN_CLOSED;
+        } else if (strcmp(argv[i], "--count-only") == 0) {
+            scan_count_only = 1;
         } else if (strcmp(argv[i], "--loss") == 0) {
             show_loss_only = 1;
         } else if (argv[i][0] == '-') {

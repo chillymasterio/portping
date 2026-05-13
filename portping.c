@@ -462,6 +462,24 @@ static void usage(const char *prog) {
         "\n", prog, prog, prog, prog);
 }
 
+/* ── Statistics helpers ── */
+
+static int cmp_double(const void *a, const void *b) {
+    double da = *(const double *)a, db = *(const double *)b;
+    return (da > db) - (da < db);
+}
+
+static double percentile(double *sorted, int n, double p) {
+    if (n <= 0) return 0;
+    if (n == 1) return sorted[0];
+    double idx = p / 100.0 * (n - 1);
+    int lo = (int)idx;
+    int hi = lo + 1;
+    if (hi >= n) return sorted[n - 1];
+    double frac = idx - lo;
+    return sorted[lo] * (1 - frac) + sorted[hi] * frac;
+}
+
 /* ── Port presets ── */
 
 static const char *resolve_preset(const char *port) {
@@ -757,6 +775,9 @@ int main(int argc, char **argv) {
     double total_ms2 = 0;  /* sum of squares for jitter */
     double min_ms = 1e9;
     double max_ms = 0;
+    double *rtt_samples = NULL;
+    int rtt_count = 0;
+    int rtt_cap = 0;
     result_t prev_result = RESULT_ERROR;  /* no previous */
     int first_probe = 1;
     int consec_fail = 0;
@@ -818,6 +839,15 @@ int main(int argc, char **argv) {
             total_ms2 += ms * ms;
             if (ms < min_ms) min_ms = ms;
             if (ms > max_ms) max_ms = ms;
+            /* Store sample for percentiles */
+            if (rtt_count < MAX_RTT_SAMPLES) {
+                if (rtt_count >= rtt_cap) {
+                    rtt_cap = rtt_cap ? rtt_cap * 2 : 64;
+                    if (rtt_cap > MAX_RTT_SAMPLES) rtt_cap = MAX_RTT_SAMPLES;
+                    rtt_samples = realloc(rtt_samples, rtt_cap * sizeof(double));
+                }
+                if (rtt_samples) rtt_samples[rtt_count++] = ms;
+            }
             break;
 
         case RESULT_REFUSED:
@@ -959,9 +989,20 @@ int main(int argc, char **argv) {
         }
         printf("rtt min/avg/max/jitter = %.1f/%.1f/%.1f/%.1f ms\n",
                min_ms, avg, max_ms, jitter);
+
+        if (rtt_samples && rtt_count > 1) {
+            qsort(rtt_samples, rtt_count, sizeof(double), cmp_double);
+            printf("rtt p50/p90/p95/p99   = %.1f/%.1f/%.1f/%.1f ms\n",
+                   percentile(rtt_samples, rtt_count, 50),
+                   percentile(rtt_samples, rtt_count, 90),
+                   percentile(rtt_samples, rtt_count, 95),
+                   percentile(rtt_samples, rtt_count, 99));
+        }
     }
 
     printf("\n");
+
+    free(rtt_samples);
 
 cleanup:
     /* Cleanup */

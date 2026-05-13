@@ -151,6 +151,13 @@ static void format_addr(struct addrinfo *ai, char *buf, size_t len) {
     inet_ntop(ai->ai_family, addr, buf, (socklen_t)len);
 }
 
+/* ── Reverse DNS ── */
+
+static int reverse_dns(struct addrinfo *ai, char *buf, size_t len) {
+    return getnameinfo(ai->ai_addr, (socklen_t)ai->ai_addrlen,
+                       buf, (socklen_t)len, NULL, 0, 0);
+}
+
 /* ── Service name lookup ── */
 
 static const char *lookup_service(const char *port) {
@@ -626,6 +633,7 @@ int main(int argc, char **argv) {
     int until_open = 0;
     int until_closed = 0;
     int exp_backoff = 0;
+    int show_rdns = 0;
     int i;
 
     /* Parse args */
@@ -684,6 +692,8 @@ int main(int argc, char **argv) {
             scan_filter = SCAN_OPEN;
         } else if (strcmp(argv[i], "--only-closed") == 0) {
             scan_filter = SCAN_CLOSED;
+        } else if (strcmp(argv[i], "-r") == 0) {
+            show_rdns = 1;
         } else if (strcmp(argv[i], "--backoff") == 0) {
             exp_backoff = 1;
         } else if (strcmp(argv[i], "--until-open") == 0) {
@@ -825,6 +835,8 @@ int main(int argc, char **argv) {
     format_addr(res, ipstr, sizeof(ipstr));
 
     const char *svc_name = show_service ? lookup_service(port) : NULL;
+    char rdns_buf[256] = {0};
+    if (show_rdns) reverse_dns(res, rdns_buf, sizeof(rdns_buf));
 
     if (csv)
         printf("seq,host,port,ip,status,ms\n");
@@ -832,6 +844,8 @@ int main(int argc, char **argv) {
         printf("\n%sPORTPING%s %s%s:%s%s", C_BOLD, C_RESET, C_BOLD, host, port, C_RESET);
         if (svc_name) printf(" (%s/%s)", ipstr, svc_name);
         else printf(" (%s)", ipstr);
+        if (rdns_buf[0] && strcmp(rdns_buf, host) != 0)
+            printf(" [%s]", rdns_buf);
         printf(" — DNS %.1f ms\n\n", dns_ms);
     }
 

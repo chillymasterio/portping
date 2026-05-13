@@ -596,6 +596,7 @@ int main(int argc, char **argv) {
     int fail_count = 0;   /* exit after N consecutive failures */
     int pass_count = 0;   /* exit after N consecutive successes */
     const char *log_file = NULL;
+    int show_histogram = 0;
     int i;
 
     /* Parse args */
@@ -644,6 +645,8 @@ int main(int argc, char **argv) {
             pass_count = atoi(argv[++i]);
         } else if (strcmp(argv[i], "--log") == 0 && i + 1 < argc) {
             log_file = argv[++i];
+        } else if (strcmp(argv[i], "-g") == 0) {
+            show_histogram = 1;
         } else if (strcmp(argv[i], "--only-open") == 0) {
             scan_filter = SCAN_OPEN;
         } else if (strcmp(argv[i], "--only-closed") == 0) {
@@ -997,6 +1000,29 @@ int main(int argc, char **argv) {
                    percentile(rtt_samples, rtt_count, 90),
                    percentile(rtt_samples, rtt_count, 95),
                    percentile(rtt_samples, rtt_count, 99));
+
+            if (show_histogram && rtt_count >= 3) {
+                int bins[10] = {0};
+                double range = max_ms - min_ms;
+                int max_bin = 0, b;
+                if (range < 0.001) range = 1.0;
+                for (b = 0; b < rtt_count; b++) {
+                    int idx = (int)((rtt_samples[b] - min_ms) / range * 9.999);
+                    if (idx > 9) idx = 9;
+                    bins[idx]++;
+                    if (bins[idx] > max_bin) max_bin = bins[idx];
+                }
+                printf("\nRTT distribution:\n");
+                for (b = 0; b < 10; b++) {
+                    double lo = min_ms + range * b / 10.0;
+                    double hi = min_ms + range * (b + 1) / 10.0;
+                    int bar_len = max_bin > 0 ? bins[b] * 30 / max_bin : 0;
+                    printf("  %6.1f-%6.1f ms |", lo, hi);
+                    int k;
+                    for (k = 0; k < bar_len; k++) printf("#");
+                    printf(" %d\n", bins[b]);
+                }
+            }
         }
     }
 

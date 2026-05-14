@@ -875,6 +875,7 @@ int main(int argc, char **argv) {
     int banner_grab = 0;
     const char *http_path = NULL;
     int json = 0;
+    int json_stream = 0;
     int alert_change = 0;
     int show_service = 0;
     int fail_count = 0;   /* exit after N consecutive failures */
@@ -937,6 +938,8 @@ int main(int argc, char **argv) {
         } else if (strcmp(argv[i], "--csv") == 0) {
             csv = 1;
             quiet = 1;
+        } else if (strcmp(argv[i], "--json-stream") == 0) {
+            json_stream = 1;
         } else if (strcmp(argv[i], "--json") == 0) {
             json = 1;
             quiet = 1;
@@ -1267,7 +1270,13 @@ int main(int argc, char **argv) {
 
         switch (r) {
         case RESULT_OPEN:
-            if (csv) {
+            if (json_stream) {
+                printf("{\"seq\":%d,\"host\":\"%s\",\"port\":\"%s\",\"ip\":\"%s\",\"status\":\"open\",\"ms\":%.1f",
+                       seq, host, port, ipstr, ms);
+                if (http_path && http_code > 0) printf(",\"http\":%d", http_code);
+                printf("}\n");
+                fflush(stdout);
+            } else if (csv) {
                 if (http_path)
                     printf("%d,%s,%s,%s,open,%.1f,%d\n", seq, host, port, ipstr, ms, http_code);
                 else
@@ -1311,7 +1320,9 @@ int main(int argc, char **argv) {
             break;
 
         case RESULT_REFUSED:
-            if (csv)
+            if (json_stream)
+                printf("{\"seq\":%d,\"host\":\"%s\",\"port\":\"%s\",\"ip\":\"%s\",\"status\":\"refused\",\"ms\":%.1f}\n", seq, host, port, ipstr, ms);
+            else if (csv)
                 printf("%d,%s,%s,%s,refused,%.1f\n", seq, host, port, ipstr, ms);
             else if (!quiet) {
                 if (show_timestamp) print_timestamp();
@@ -1323,7 +1334,9 @@ int main(int argc, char **argv) {
             break;
 
         case RESULT_TIMEOUT:
-            if (csv)
+            if (json_stream)
+                printf("{\"seq\":%d,\"host\":\"%s\",\"port\":\"%s\",\"ip\":\"%s\",\"status\":\"timeout\"}\n", seq, host, port, ipstr);
+            else if (csv)
                 printf("%d,%s,%s,%s,timeout,\n", seq, host, port, ipstr);
             else if (!quiet) {
                 if (show_timestamp) print_timestamp();

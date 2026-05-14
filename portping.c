@@ -263,7 +263,7 @@ static int bind_source(SOCKET s, int family) {
     return ret;
 }
 
-/* ── TCP connect with timeout ── */
+/* ── UDP probe ── */
 
 typedef enum {
     RESULT_OPEN,
@@ -271,6 +271,51 @@ typedef enum {
     RESULT_TIMEOUT,
     RESULT_ERROR
 } result_t;
+
+static result_t udp_ping(struct addrinfo *ai, int timeout_ms, double *elapsed) {
+    pp_timer_t t;
+    SOCKET s;
+    fd_set rfds;
+    struct timeval tv;
+    char buf[1] = {0};
+
+    s = socket(ai->ai_family, SOCK_DGRAM, IPPROTO_UDP);
+    if (s == INVALID_SOCKET) return RESULT_ERROR;
+
+    bind_source(s, ai->ai_family);
+    set_nonblocking(s);
+    timer_start(&t);
+
+    sendto(s, buf, 1, 0, ai->ai_addr, (int)ai->ai_addrlen);
+
+    FD_ZERO(&rfds);
+    FD_SET(s, &rfds);
+    tv.tv_sec = timeout_ms / 1000;
+    tv.tv_usec = (timeout_ms % 1000) * 1000;
+
+    if (select((int)s + 1, &rfds, NULL, NULL, &tv) > 0) {
+        char resp[64];
+        int n = recvfrom(s, resp, sizeof(resp), 0, NULL, NULL);
+        *elapsed = timer_elapsed_ms(&t);
+        closesocket(s);
+        if (n < 0) {
+#ifdef _WIN32
+            int err = WSAGetLastError();
+            return (err == WSAECONNRESET) ? RESULT_REFUSED : RESULT_OPEN;
+#else
+            return (errno == ECONNREFUSED) ? RESULT_REFUSED : RESULT_OPEN;
+#endif
+        }
+        return RESULT_OPEN;
+    }
+
+    *elapsed = timer_elapsed_ms(&t);
+    closesocket(s);
+    /* No ICMP unreachable = likely open|filtered */
+    return RESULT_OPEN;
+}
+
+/* ── TCP connect with timeout ── */
 
 static result_t tcp_ping_ex(struct addrinfo *ai, int timeout_ms, double *elapsed,
                             char *banner, int banner_max) {
@@ -677,6 +722,7 @@ int main(int argc, char **argv) {
     int exp_backoff = 0;
     int show_rdns = 0;
     int no_summary = 0;
+    int use_udp = 0;
     int i;
 
     /* Parse args */
@@ -749,6 +795,8 @@ int main(int argc, char **argv) {
             until_closed = 1;
         } else if (strcmp(argv[i], "--count-only") == 0) {
             scan_count_only = 1;
+        } else if (strcmp(argv[i], "-u") == 0) {
+            use_udp = 1;
         } else if (strcmp(argv[i], "--loss") == 0) {
             show_loss_only = 1;
         } else if (argv[i][0] == '-') {
@@ -933,7 +981,9 @@ int main(int argc, char **argv) {
         int http_code = 0;
         result_t r;
 
-        if (http_path) {
+        if (use_udp) {
+            r = udp_ping(res, timeout_ms, &ms);
+        } else if (http_path) {
             SOCKET hs = tcp_connect(res, timeout_ms, &ms);
             if (hs != INVALID_SOCKET) {
                 r = RESULT_OPEN;

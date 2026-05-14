@@ -262,6 +262,7 @@ static const char *g_label = NULL;
 static int g_compact = 0;
 static int g_avg_only = 0;
 static int g_source_port = 0;
+static int g_retry = 0;
 
 static int bind_source(SOCKET s, int family) {
     if (!g_source_addr && !g_source_port) return 0;
@@ -1016,6 +1017,8 @@ int main(int argc, char **argv) {
             g_avg_only = 1;
         } else if (strcmp(argv[i], "--source-port") == 0 && i + 1 < argc) {
             g_source_port = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "--retry") == 0 && i + 1 < argc) {
+            g_retry = atoi(argv[++i]);
         } else if (strcmp(argv[i], "--until-open") == 0) {
             until_open = 1;
         } else if (strcmp(argv[i], "--until-closed") == 0) {
@@ -1270,23 +1273,29 @@ int main(int argc, char **argv) {
         char banner[256] = {0};
         char http_status[128] = {0};
         int http_code = 0;
-        result_t r;
+        result_t r = RESULT_ERROR;
 
-        if (use_udp) {
-            r = udp_ping(res, timeout_ms, &ms);
-        } else if (http_path) {
-            SOCKET hs = tcp_connect(res, timeout_ms, &ms);
-            if (hs != INVALID_SOCKET) {
-                r = RESULT_OPEN;
-                http_code = http_check(hs, host, http_path, http_status, sizeof(http_status));
-                closesocket(hs);
+        for (int attempt = 0; attempt <= g_retry; attempt++) {
+            if (use_udp) {
+                r = udp_ping(res, timeout_ms, &ms);
+            } else if (http_path) {
+                SOCKET hs = tcp_connect(res, timeout_ms, &ms);
+                if (hs != INVALID_SOCKET) {
+                    r = RESULT_OPEN;
+                    http_code = http_check(hs, host, http_path, http_status, sizeof(http_status));
+                    closesocket(hs);
+                } else {
+                    r = RESULT_TIMEOUT;
+                }
+            } else if (banner_grab) {
+                r = tcp_ping_ex(res, timeout_ms, &ms, banner, sizeof(banner));
             } else {
-                r = RESULT_TIMEOUT;
+                r = tcp_ping(res, timeout_ms, &ms);
             }
-        } else if (banner_grab) {
-            r = tcp_ping_ex(res, timeout_ms, &ms, banner, sizeof(banner));
-        } else {
-            r = tcp_ping(res, timeout_ms, &ms);
+            if (r == RESULT_OPEN || attempt >= g_retry) break;
+            /* Brief pause before retry */
+            struct timespec rts = { .tv_sec = 0, .tv_nsec = 100000000L };
+            nanosleep(&rts, NULL);
         }
 
         /* Re-resolve DNS each attempt if requested */

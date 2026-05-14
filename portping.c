@@ -256,6 +256,7 @@ static int g_ttl = 0;
 static const char *g_interface = NULL;
 static double g_latency_warn = 0;
 static double g_latency_crit = 0;
+static int g_resolve_each = 0;
 
 static int bind_source(SOCKET s, int family) {
     struct addrinfo hints, *res;
@@ -973,6 +974,8 @@ int main(int argc, char **argv) {
             g_latency_warn = atof(argv[++i]);
         } else if (strcmp(argv[i], "--latency-crit") == 0 && i + 1 < argc) {
             g_latency_crit = atof(argv[++i]);
+        } else if (strcmp(argv[i], "--resolve-each") == 0) {
+            g_resolve_each = 1;
         } else if (strcmp(argv[i], "--until-open") == 0) {
             until_open = 1;
         } else if (strcmp(argv[i], "--until-closed") == 0) {
@@ -1241,6 +1244,15 @@ int main(int argc, char **argv) {
             r = tcp_ping_ex(res, timeout_ms, &ms, banner, sizeof(banner));
         } else {
             r = tcp_ping(res, timeout_ms, &ms);
+        }
+
+        /* Re-resolve DNS each attempt if requested */
+        if (g_resolve_each && running) {
+            freeaddrinfo(res);
+            if (resolve(host, port, af, &res) != 0) {
+                fprintf(stderr, "DNS re-resolve failed\n");
+                break;
+            }
         }
         seq++;
 

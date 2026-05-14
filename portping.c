@@ -251,6 +251,7 @@ static int http_check(SOCKET s, const char *host, const char *path,
 static const char *g_source_addr = NULL;
 static int g_tcp_nodelay = 0;
 static int g_ttl = 0;
+static const char *g_interface = NULL;
 
 static int bind_source(SOCKET s, int family) {
     struct addrinfo hints, *res;
@@ -341,6 +342,11 @@ static result_t tcp_ping_ex(struct addrinfo *ai, int timeout_ms, double *elapsed
         int ttl = g_ttl;
         setsockopt(s, IPPROTO_IP, IP_TTL, (char *)&ttl, sizeof(ttl));
     }
+#ifdef SO_BINDTODEVICE
+    if (g_interface) {
+        setsockopt(s, SOL_SOCKET, SO_BINDTODEVICE, g_interface, (int)strlen(g_interface) + 1);
+    }
+#endif
     set_nonblocking(s);
 
     timer_start(&t);
@@ -947,6 +953,8 @@ int main(int argc, char **argv) {
             g_tcp_nodelay = 1;
         } else if (strcmp(argv[i], "--ttl") == 0 && i + 1 < argc) {
             g_ttl = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "-I") == 0 && i + 1 < argc) {
+            g_interface = argv[++i];
         } else if (strcmp(argv[i], "--no-summary") == 0) {
             no_summary = 1;
         } else if (strcmp(argv[i], "-r") == 0) {

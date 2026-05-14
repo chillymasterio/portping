@@ -93,6 +93,10 @@ portping --top-ports 100 --parallel 50 --only-open server.com
 | `--ttl <N>` | Set IP TTL |
 | `--nodelay` | Set TCP_NODELAY |
 | `--dns-retry` | Retry DNS resolution on failure |
+| `--source-port <N>` | Bind to specific local port |
+| `--retry <N>` | Retry failed probes N times |
+| `--adaptive` | Auto-adjust interval based on results |
+| `--resolve-each` | Re-resolve DNS on every probe |
 
 ### Output
 
@@ -111,6 +115,14 @@ portping --top-ports 100 --parallel 50 --only-open server.com
 | `-o <file>` | Write output to file |
 | `--csv` | CSV format |
 | `--json` | JSON summary |
+| `--json-stream` | NDJSON (one JSON per probe) |
+| `--compact` | Single char per probe (. x !) |
+| `--avg-only` | Print average RTT only |
+| `--progress` | Show completion percentage |
+| `--label <text>` | Custom label in banner |
+| `--no-dns` | Suppress DNS info in banner |
+| `--color=MODE` | Color: always/never/auto |
+| `--quiet-fail` | Suppress errors for scripting |
 
 ### Probing
 
@@ -150,6 +162,9 @@ portping --top-ports 100 --parallel 50 --only-open server.com
 | `--max-rtt <ms>` | 3 | Avg RTT exceeds threshold |
 | `--max-loss <pct>` | 4 | Loss % exceeds threshold |
 | `--expect-closed` | 0 | Port closed = success |
+| `--latency-warn <ms>` | 6 | Avg latency above warning |
+| `--latency-crit <ms>` | 5 | Any probe exceeds critical |
+| `--min-success <pct>` | 7 | Success rate below threshold |
 
 ## Examples
 

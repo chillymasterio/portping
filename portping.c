@@ -5,6 +5,8 @@
  * License: MIT
  */
 
+#define _POSIX_C_SOURCE 200809L
+
 #ifdef _WIN32
   #define WIN32_LEAN_AND_MEAN
   #include <winsock2.h>
@@ -1108,7 +1110,7 @@ int main(int argc, char **argv) {
                 if (start > 0 && end > 0 && end >= start && end - start < 1024) {
                     int p;
                     for (p = start; p <= end; p++) {
-                        char pbuf[8];
+                        char pbuf[16];
                         snprintf(pbuf, sizeof(pbuf), "%d", p);
                         if (expanded[0]) strncat(expanded, ",", sizeof(expanded) - strlen(expanded) - 1);
                         strncat(expanded, pbuf, sizeof(expanded) - strlen(expanded) - 1);

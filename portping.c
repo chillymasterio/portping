@@ -1549,5 +1549,7 @@ cleanup:
     }
     if (max_rtt_threshold > 0 && success > 0 && avg > max_rtt_threshold) return 3;
     if (max_loss_threshold >= 0 && total > 0 && loss > max_loss_threshold) return 4;
+    if (g_latency_crit > 0 && success > 0 && max_ms >= g_latency_crit) return 5;
+    if (g_latency_warn > 0 && success > 0 && avg >= g_latency_warn) return 6;
     return (success > 0) ? 0 : 1;
 }

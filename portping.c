@@ -264,6 +264,7 @@ static int g_avg_only = 0;
 static int g_source_port = 0;
 static int g_retry = 0;
 static double g_min_success_rate = 0;
+static int g_adaptive = 0;
 
 static int bind_source(SOCKET s, int family) {
     if (!g_source_addr && !g_source_port) return 0;
@@ -1033,6 +1034,8 @@ int main(int argc, char **argv) {
             g_retry = atoi(argv[++i]);
         } else if (strcmp(argv[i], "--min-success") == 0 && i + 1 < argc) {
             g_min_success_rate = atof(argv[++i]);
+        } else if (strcmp(argv[i], "--adaptive") == 0) {
+            g_adaptive = 1;
         } else if (strcmp(argv[i], "--until-open") == 0) {
             until_open = 1;
         } else if (strcmp(argv[i], "--until-closed") == 0) {
@@ -1493,6 +1496,16 @@ int main(int argc, char **argv) {
                 if (exp_backoff && r != RESULT_OPEN) {
                     sleep_time = interval_ms * (1 << (consec_fail < 6 ? consec_fail : 6));
                     if (sleep_time > 60000) sleep_time = 60000;
+                } else if (g_adaptive) {
+                    /* Adaptive: halve interval on success (min 100ms), double on fail (max 30s) */
+                    if (r == RESULT_OPEN) {
+                        sleep_time = interval_ms / 2;
+                        if (sleep_time < 100) sleep_time = 100;
+                    } else {
+                        sleep_time = interval_ms * 2;
+                        if (sleep_time > 30000) sleep_time = 30000;
+                    }
+                    interval_ms = sleep_time;
                 }
                 sleep_ms(sleep_time);
             }

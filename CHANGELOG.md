@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.2.0] - 2026-05-14
+
+### Added
+- `--latency-warn` and `--latency-crit` for RTT threshold monitoring
+- `--resolve-each` to re-resolve DNS on every probe
+- `--no-dns` to suppress DNS resolution banner
+- `--label` for custom host identification in output
+- Latency threshold violation counts in summary
+- Exit codes 5/6 for latency threshold violations
+
+### Fixed
+- Added `_POSIX_C_SOURCE` for nanosleep/timespec availability
+- Buffer size warning in port range expansion
+
 ## [2.1.0] - 2026-05-14
 
 ### Added

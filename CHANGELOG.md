@@ -1,5 +1,30 @@
 # Changelog
 
+## [2.1.0] - 2026-05-14
+
+### Added
+- `-u` flag for UDP port probing
+- `-I <iface>` flag to bind to specific network interface
+- `-o <file>` flag to redirect output to a file
+- `--flood` rapid-fire mode with no interval delay
+- `--parallel <N>` for concurrent multi-port scanning
+- `--top-ports <N>` to scan top 20/50/100 common ports
+- `--slow <ms>` to only display probes above RTT threshold
+- `--ttl <N>` to set IP time-to-live on probes
+- `--dns-retry` for resilient DNS resolution
+- `--expect-closed` to invert exit code (closed port = success)
+- `--max-jitter <ms>` SLA threshold (exit code 2)
+- `--max-rtt <ms>` SLA threshold (exit code 3)
+- `--max-loss <pct>` SLA threshold (exit code 4)
+- `--ts-format <fmt>` for custom timestamp format
+- Man page (portping.1)
+- Longest open/fail streak tracking in statistics
+- Repeated scan support (-c flag in scan mode)
+
+### Changed
+- Parallel scan dramatically speeds up multi-port probing
+- Timestamp uses cross-platform strftime instead of OS-specific code
+
 ## [2.0.0] - 2026-05-13
 
 ### Added

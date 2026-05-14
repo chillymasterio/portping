@@ -12,8 +12,9 @@ PORTPING google.com:443 (142.250.74.46) — DNS 12.4 ms
   [3] google.com:443  open  12.1 ms
   ^C
 --- google.com:443 portping statistics ---
-3 attempts, 3 open, 0 refused, 0 timeout/error (0% loss)
+3 attempts, 3 open, 0 refused, 0 timeout/error (0% loss), time 2.1s
 rtt min/avg/max/jitter = 11.8/12.1/12.3/0.2 ms
+rtt p50/p90/p95/p99   = 12.1/12.3/12.3/12.3 ms
 ```
 
 ## Why?
@@ -24,151 +25,198 @@ rtt min/avg/max/jitter = 11.8/12.1/12.3/0.2 ms
 
 - **Zero dependencies** — single C file, compiles everywhere
 - **Cross-platform** — Windows, Linux, macOS
-- **Scriptable** — exit code 0 = at least one connection succeeded
+- **Scriptable** — exit codes for success, failure, jitter, RTT, and loss thresholds
 - **Familiar** — same flags and output style as `ping`
+- **Parallel scanning** — probe hundreds of ports in seconds
+- **SLA monitoring** — built-in thresholds for automated alerting
 
 ## Install
 
 ### Build from source
 
 ```bash
-cmake -B build
-cmake --build build
-# binary is at build/portping (or build/Release/portping.exe on Windows)
+# Using CMake
+cmake -B build && cmake --build build
+
+# Using Make
+make
+
+# Or compile directly
+gcc -O2 -o portping portping.c -lm
 ```
 
-Or just compile directly:
+### Install system-wide
 
 ```bash
-# Linux / macOS
-gcc -O2 -o portping portping.c -lm
-
-# Windows (MSVC)
-cl portping.c ws2_32.lib
+sudo make install
+# or
+sudo cmake --install build
 ```
 
 ### Download
 
 Grab a prebuilt binary from [Releases](https://github.com/chillymasterio/portping/releases/latest).
 
-## Usage
-
-```
-portping [options] <host> <port>
-
-Options:
-  -c <count>     Number of attempts (default: infinite)
-  -t <ms>        Timeout per attempt in ms (default: 2000)
-  -i <ms>        Interval between attempts in ms (default: 1000)
-  -4             Force IPv4
-  -6             Force IPv6
-  -T             Show timestamp on each line
-  -q             Quiet mode — only show summary
-  -b             Grab service banner after connect
-  -H <path>      HTTP health check (GET path, show status)
-  -A             Alert (beep) on state change
-  -w <sec>       Stop after <sec> seconds total (deadline)
-  --csv          Output in CSV format
-  --json         Output summary as JSON
-  --no-color     Disable colored output
-  -V, --version  Show version
-  -h             Show help
-```
-
-### Examples
+## Quick Start
 
 ```bash
-# Check if HTTPS is open
+# Check if a port is open
 portping example.com 443
 
-# 5 attempts with 500ms timeout
-portping -c 5 -t 500 192.168.1.1 22
+# Use host:port syntax
+portping example.com:22
 
-# Fast polling — 200ms interval
-portping -c 20 -i 200 db-server 5432
+# Scan multiple ports
+portping server.com 22,80,443,3306
 
-# Force IPv4
-portping -4 example.com 443
+# Scan a range
+portping server.com 8080-8090
 
-# Scan multiple ports at once
-portping myserver.com 22,80,443,3306,8080
-
-# Port range scan
-portping myserver.com 8080-8090
-
-# Mixed ranges and individual ports
-portping myserver.com 22,80-85,443,8080-8082
-
-# Grab service banners (SSH, SMTP, FTP, etc.)
-portping -b -c 1 myserver.com 22
-
-# Run for exactly 30 seconds with timestamps
-portping -T -w 30 db-server 5432
-
-# HTTP health check
-portping -H /health -c 10 api-server 8080
-
-# JSON output for automation
-portping --json -c 5 prod-api 443
-
-# CSV output for monitoring
-portping --csv -c 100 prod-api 443 > log.csv
-
-# Alert when port state changes (beeps on DOWN/UP transitions)
-portping -A prod-db 5432
-
-# Quiet mode — just the summary
-portping -q -c 10 example.com 443
-
-# Script: wait for a service to come up
-until portping -c 1 -t 1000 localhost 8080 > /dev/null 2>&1; do
-    sleep 1
-done
-echo "Service is up!"
+# Fast parallel scan of common ports
+portping --top-ports 100 --parallel 50 --only-open server.com
 ```
 
-### Multi-port scan
+## Options
 
-Pass comma-separated ports to scan all of them at once:
+### Connection
 
-```
-$ portping myserver.com 22,80,443,3306
-
-  Scanning myserver.com ports: 22,80,443,3306
-
-  22     myserver.com:22  open     8.2 ms
-  80     myserver.com:80  open     7.9 ms
-  443    myserver.com:443  open     8.1 ms
-  3306   myserver.com:3306  refused  7.5 ms
-
-  3/4 ports open
-```
+| Flag | Description |
+|------|-------------|
+| `-c <N>` | Number of probes (default: infinite) |
+| `-t <ms>` | Timeout per probe (default: 2000) |
+| `-i <ms>` | Interval between probes (default: 1000) |
+| `-w <sec>` | Total deadline in seconds |
+| `-4` / `-6` | Force IPv4 / IPv6 |
+| `-u` | UDP mode instead of TCP |
+| `-S <addr>` | Bind to source address |
+| `-I <iface>` | Bind to network interface (Linux) |
+| `--ttl <N>` | Set IP TTL |
+| `--nodelay` | Set TCP_NODELAY |
+| `--dns-retry` | Retry DNS resolution on failure |
 
 ### Output
 
-| Status | Meaning |
-|---|---|
-| `open` | TCP connection accepted |
-| `refused` | Port actively rejected (RST) |
-| `timeout` | No response within timeout |
-| `error` | Socket/network error |
+| Flag | Description |
+|------|-------------|
+| `-T` | Show timestamps |
+| `--ts-format <fmt>` | Custom strftime format |
+| `-p` | Show service name for port |
+| `-r` | Show reverse DNS |
+| `-g` | Show RTT histogram |
+| `-q` | Quiet — only summary |
+| `--slow <ms>` | Only show probes slower than threshold |
+| `--loss` | Only show failed probes |
+| `--no-summary` | Suppress summary stats |
+| `--no-color` | Disable ANSI colors |
+| `-o <file>` | Write output to file |
+| `--csv` | CSV format |
+| `--json` | JSON summary |
 
-### Exit codes
+### Probing
+
+| Flag | Description |
+|------|-------------|
+| `-b` | Grab service banner |
+| `-H <path>` | HTTP health check (GET path) |
+| `-A` | Alert on state change |
+| `--exec <cmd>` | Run command on state change |
+| `--flood` | No-delay rapid fire mode |
+| `--backoff` | Exponential backoff on failure |
+| `--fail <N>` | Exit after N consecutive failures |
+| `--pass <N>` | Exit after N consecutive successes |
+| `--until-open` | Wait until port opens |
+| `--until-closed` | Wait until port closes |
+| `--log <file>` | Append results to log file |
+
+### Scan Mode
+
+| Flag | Description |
+|------|-------------|
+| `--parallel <N>` | Probe N ports simultaneously |
+| `--top-ports <N>` | Scan top 20/50/100 common ports |
+| `--only-open` | Show only open ports |
+| `--only-closed` | Show only closed ports |
+| `--count-only` | Print open port count only |
+| `--web` | Preset: 80,443,8080,8443 |
+| `--db` | Preset: 3306,5432,1433,27017,6379 |
+| `--mail` | Preset: 25,465,587,993,995,143,110 |
+| `--remote` | Preset: 22,23,3389,5900,5901 |
+
+### SLA Thresholds
+
+| Flag | Exit Code | Description |
+|------|-----------|-------------|
+| `--max-jitter <ms>` | 2 | Jitter exceeds threshold |
+| `--max-rtt <ms>` | 3 | Avg RTT exceeds threshold |
+| `--max-loss <pct>` | 4 | Loss % exceeds threshold |
+| `--expect-closed` | 0 | Port closed = success |
+
+## Examples
+
+### Basic monitoring
+
+```bash
+# Monitor with timestamps, alert on change
+portping -T -A prod-db 5432
+
+# Run for 60 seconds, log results
+portping -w 60 --log /var/log/portping.log web-server 443
+
+# HTTP health check
+portping -H /api/health -c 10 api.example.com 8080
+```
+
+### Scripting
+
+```bash
+# Wait for service to start
+portping --until-open -i 500 localhost 8080
+
+# SLA check in CI/CD
+portping --max-rtt 100 --max-loss 5 -c 50 prod-api 443 || alert
+
+# Quick firewall verification
+portping --expect-closed -c 1 server 3306 || echo "DB port exposed!"
+```
+
+### Scanning
+
+```bash
+# Fast scan of common ports
+portping --top-ports 100 --parallel 50 --only-open target.com
+
+# Scan with service identification
+portping -p target.com 20-25,80,443,3306,5432,8080-8090
+
+# CSV export for analysis
+portping --csv --parallel 20 server.com 1-1024 > scan.csv
+```
+
+### Advanced
+
+```bash
+# Banner grab to identify services
+portping -b -c 1 server.com 22,25,80,3306
+
+# JSON output for dashboards
+portping --json -c 100 -i 200 prod-server 443 | jq .
+
+# Exponential backoff monitoring
+portping --backoff -A --exec "/usr/local/bin/notify.sh" prod-db 5432
+
+# Flood test (no delay)
+portping --flood -c 1000 -q localhost 8080
+```
+
+## Exit Codes
 
 | Code | Meaning |
-|---|---|
-| `0` | At least one successful connection |
-| `1` | All attempts failed |
-
-## Use cases
-
-- **Firewall testing** — verify port rules without installing nmap
-- **Service monitoring** — check if a port is accepting connections
-- **Deploy scripts** — wait for a service to be ready before proceeding
-- **Troubleshooting** — distinguish between "host down", "port closed", and "filtered"
-- **Latency measurement** — TCP handshake time to a specific service
-- **Service discovery** — scan multiple ports, grab banners
-- **Log analysis** — CSV output with timestamps for dashboards
+|------|---------|
+| 0 | At least one connection succeeded |
+| 1 | All probes failed |
+| 2 | Jitter threshold exceeded (--max-jitter) |
+| 3 | RTT threshold exceeded (--max-rtt) |
+| 4 | Loss threshold exceeded (--max-loss) |
 
 ## License
 

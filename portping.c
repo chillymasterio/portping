@@ -891,6 +891,7 @@ int main(int argc, char **argv) {
     const char *output_file = NULL;
     int top_ports = 0;
     double rtt_threshold = 0;  /* --slow-threshold: only show probes above this ms */
+    double max_jitter_threshold = 0;
     int i;
 
     /* Parse args */
@@ -984,6 +985,8 @@ int main(int argc, char **argv) {
             top_ports = atoi(argv[++i]);
         } else if (strcmp(argv[i], "--slow") == 0 && i + 1 < argc) {
             rtt_threshold = atof(argv[++i]);
+        } else if (strcmp(argv[i], "--max-jitter") == 0 && i + 1 < argc) {
+            max_jitter_threshold = atof(argv[++i]);
         } else if (strcmp(argv[i], "--loss") == 0) {
             show_loss_only = 1;
         } else if (argv[i][0] == '-') {
@@ -1483,5 +1486,10 @@ cleanup:
 
     if (expect_closed)
         return (success == 0) ? 0 : 1;
+    if (max_jitter_threshold > 0 && success > 1) {
+        double variance = (total_ms2 / success) - (avg * avg);
+        double jitter_final = sqrt(variance > 0 ? variance : 0);
+        if (jitter_final > max_jitter_threshold) return 2;
+    }
     return (success > 0) ? 0 : 1;
 }

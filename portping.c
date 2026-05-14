@@ -606,7 +606,7 @@ static const char *resolve_preset(const char *port) {
     return NULL;
 }
 
-/* ── Port scan (comma-separated ports) ── */
+/* ── Scan globals ── */
 
 typedef enum {
     SCAN_ALL,
@@ -616,6 +616,151 @@ typedef enum {
 
 static scan_filter_t scan_filter = SCAN_ALL;
 static int scan_count_only = 0;
+static int scan_parallel = 0;
+
+/* ── Parallel port scan ── */
+
+typedef struct {
+    SOCKET sock;
+    int port;
+    pp_timer_t timer;
+    int done;
+    result_t result;
+    double ms;
+} probe_slot_t;
+
+static int scan_ports_parallel(const char *host, const char *portlist, int af,
+                               int timeout_ms, int csv, int batch_size) {
+    char buf[4096];
+    char *ports[2048];
+    int nports = 0;
+    char *tok, *save;
+    int open_count = 0;
+
+    strncpy(buf, portlist, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = '\0';
+
+    for (tok = strtok_r(buf, ",", &save); tok && nports < 2048; tok = strtok_r(NULL, ",", &save))
+        ports[nports++] = tok;
+
+    if (csv)
+        printf("host,port,ip,status,ms\n");
+    else if (!scan_count_only)
+        printf("\n  Scanning %s — %d ports (%d parallel)\n\n", host, nports, batch_size);
+
+    int p = 0;
+    while (p < nports) {
+        int batch = (p + batch_size <= nports) ? batch_size : nports - p;
+        probe_slot_t *slots = calloc(batch, sizeof(probe_slot_t));
+        int j;
+
+        /* Start all connections */
+        for (j = 0; j < batch; j++) {
+            struct addrinfo *res;
+            slots[j].port = atoi(ports[p + j]);
+            slots[j].done = 0;
+            slots[j].result = RESULT_TIMEOUT;
+            slots[j].sock = INVALID_SOCKET;
+
+            if (resolve(host, ports[p + j], af, &res) != 0) {
+                slots[j].done = 1;
+                slots[j].result = RESULT_ERROR;
+                continue;
+            }
+
+            SOCKET s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+            if (s == INVALID_SOCKET) {
+                slots[j].done = 1;
+                slots[j].result = RESULT_ERROR;
+                freeaddrinfo(res);
+                continue;
+            }
+
+            set_nonblocking(s);
+            timer_start(&slots[j].timer);
+            int rc_unused = connect(s, res->ai_addr, (int)res->ai_addrlen);
+            (void)rc_unused; /* non-blocking, will complete via select */
+            slots[j].sock = s;
+            freeaddrinfo(res);
+        }
+
+        /* Wait with select */
+        struct timeval tv;
+        tv.tv_sec = timeout_ms / 1000;
+        tv.tv_usec = (timeout_ms % 1000) * 1000;
+
+        fd_set wfds;
+        FD_ZERO(&wfds);
+        SOCKET maxfd = 0;
+        for (j = 0; j < batch; j++) {
+            if (!slots[j].done && slots[j].sock != INVALID_SOCKET) {
+                FD_SET(slots[j].sock, &wfds);
+                if (slots[j].sock > maxfd) maxfd = slots[j].sock;
+            }
+        }
+
+        select((int)maxfd + 1, NULL, &wfds, NULL, &tv);
+
+        /* Check results */
+        for (j = 0; j < batch; j++) {
+            if (slots[j].done) continue;
+            if (slots[j].sock == INVALID_SOCKET) continue;
+
+            slots[j].ms = timer_elapsed_ms(&slots[j].timer);
+
+            if (FD_ISSET(slots[j].sock, &wfds)) {
+                int err = 0;
+                socklen_t el = sizeof(err);
+                getsockopt(slots[j].sock, SOL_SOCKET, SO_ERROR, (char *)&err, &el);
+                slots[j].result = (err == 0) ? RESULT_OPEN : RESULT_REFUSED;
+            }
+            closesocket(slots[j].sock);
+        }
+
+        /* Print results */
+        for (j = 0; j < batch; j++) {
+            char pstr[8];
+            snprintf(pstr, sizeof(pstr), "%d", slots[j].port);
+            const char *sn = lookup_service(pstr);
+            const char *svc = sn ? sn : "";
+            result_t r = slots[j].result;
+
+            if (csv) {
+                const char *st = (r == RESULT_OPEN) ? "open" :
+                                 (r == RESULT_REFUSED) ? "refused" :
+                                 (r == RESULT_TIMEOUT) ? "timeout" : "error";
+                printf("%s,%d,,%s,%.1f\n", host, slots[j].port, st, slots[j].ms);
+            } else if (!scan_count_only) {
+                int show = 1;
+                if (scan_filter == SCAN_OPEN && r != RESULT_OPEN) show = 0;
+                if (scan_filter == SCAN_CLOSED && r == RESULT_OPEN) show = 0;
+
+                if (show) {
+                    const char *col = (r == RESULT_OPEN) ? C_GREEN :
+                                      (r == RESULT_REFUSED) ? C_RED : C_YELLOW;
+                    const char *label = (r == RESULT_OPEN) ? "open" :
+                                        (r == RESULT_REFUSED) ? "refused" : "timeout";
+                    printf("  %s%-6d%s %-8s %s:%d  %s%-8s%s %.1f ms\n",
+                           col, slots[j].port, C_RESET, svc,
+                           host, slots[j].port, col, label, C_RESET, slots[j].ms);
+                }
+            }
+            if (r == RESULT_OPEN) open_count++;
+        }
+
+        free(slots);
+        p += batch;
+    }
+
+    if (scan_count_only)
+        printf("%d\n", open_count);
+    else if (!csv)
+        printf("\n  %d/%d ports open\n\n", open_count, nports);
+
+    return (open_count > 0) ? 0 : 1;
+}
+
+/* ── Port scan (comma-separated ports) ── */
 
 static int scan_ports(const char *host, const char *portlist, int af,
                       int timeout_ms, int csv) {
@@ -799,6 +944,8 @@ int main(int argc, char **argv) {
             until_closed = 1;
         } else if (strcmp(argv[i], "--count-only") == 0) {
             scan_count_only = 1;
+        } else if (strcmp(argv[i], "--parallel") == 0 && i + 1 < argc) {
+            scan_parallel = atoi(argv[++i]);
         } else if (strcmp(argv[i], "-u") == 0) {
             use_udp = 1;
         } else if (strcmp(argv[i], "--flood") == 0) {
@@ -932,7 +1079,11 @@ int main(int argc, char **argv) {
             }
         }
 
-        int ret = scan_ports(host, expanded, af, timeout_ms, csv);
+        int ret;
+        if (scan_parallel > 0)
+            ret = scan_ports_parallel(host, expanded, af, timeout_ms, csv, scan_parallel);
+        else
+            ret = scan_ports(host, expanded, af, timeout_ms, csv);
         net_cleanup();
         return ret;
     }

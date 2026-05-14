@@ -723,6 +723,7 @@ int main(int argc, char **argv) {
     int show_rdns = 0;
     int no_summary = 0;
     int use_udp = 0;
+    int flood_mode = 0;
     int i;
 
     /* Parse args */
@@ -797,6 +798,9 @@ int main(int argc, char **argv) {
             scan_count_only = 1;
         } else if (strcmp(argv[i], "-u") == 0) {
             use_udp = 1;
+        } else if (strcmp(argv[i], "--flood") == 0) {
+            flood_mode = 1;
+            quiet = 1;
         } else if (strcmp(argv[i], "--loss") == 0) {
             show_loss_only = 1;
         } else if (argv[i][0] == '-') {
@@ -1121,15 +1125,25 @@ int main(int argc, char **argv) {
             fflush(logfp);
         }
 
-        if (!quiet) fflush(stdout);
+        if (flood_mode) {
+            putchar(r == RESULT_OPEN ? '.' : 'X');
+            if (seq % 70 == 0) putchar('\n');
+            fflush(stdout);
+        } else if (!quiet) {
+            fflush(stdout);
+        }
 
         if (running && (count == 0 || seq < count)) {
-            int sleep_time = interval_ms;
-            if (exp_backoff && r != RESULT_OPEN) {
-                sleep_time = interval_ms * (1 << (consec_fail < 6 ? consec_fail : 6));
-                if (sleep_time > 60000) sleep_time = 60000;
+            if (flood_mode) {
+                /* no delay */
+            } else {
+                int sleep_time = interval_ms;
+                if (exp_backoff && r != RESULT_OPEN) {
+                    sleep_time = interval_ms * (1 << (consec_fail < 6 ? consec_fail : 6));
+                    if (sleep_time > 60000) sleep_time = 60000;
+                }
+                sleep_ms(sleep_time);
             }
-            sleep_ms(sleep_time);
         }
     }
 

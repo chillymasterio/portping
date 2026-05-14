@@ -260,6 +260,7 @@ static int g_resolve_each = 0;
 static int g_no_dns_banner = 0;
 static const char *g_label = NULL;
 static int g_compact = 0;
+static int g_avg_only = 0;
 
 static int bind_source(SOCKET s, int family) {
     struct addrinfo hints, *res;
@@ -988,6 +989,8 @@ int main(int argc, char **argv) {
             g_label = argv[++i];
         } else if (strcmp(argv[i], "--compact") == 0) {
             g_compact = 1;
+        } else if (strcmp(argv[i], "--avg-only") == 0) {
+            g_avg_only = 1;
         } else if (strcmp(argv[i], "--until-open") == 0) {
             until_open = 1;
         } else if (strcmp(argv[i], "--until-closed") == 0) {
@@ -1458,6 +1461,14 @@ int main(int argc, char **argv) {
     double session_secs = timer_elapsed_ms(&session_timer) / 1000.0;
 
     if (csv || no_summary) goto cleanup;
+
+    if (g_avg_only) {
+        if (success > 0)
+            printf("%.1f\n", avg);
+        else
+            printf("-1\n");
+        goto cleanup;
+    }
 
     if (json) {
         double jitter = 0;

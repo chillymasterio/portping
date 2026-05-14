@@ -258,6 +258,7 @@ static double g_latency_warn = 0;
 static double g_latency_crit = 0;
 static int g_resolve_each = 0;
 static int g_no_dns_banner = 0;
+static const char *g_label = NULL;
 
 static int bind_source(SOCKET s, int family) {
     struct addrinfo hints, *res;
@@ -979,6 +980,8 @@ int main(int argc, char **argv) {
             g_resolve_each = 1;
         } else if (strcmp(argv[i], "--no-dns") == 0) {
             g_no_dns_banner = 1;
+        } else if (strcmp(argv[i], "--label") == 0 && i + 1 < argc) {
+            g_label = argv[++i];
         } else if (strcmp(argv[i], "--until-open") == 0) {
             until_open = 1;
         } else if (strcmp(argv[i], "--until-closed") == 0) {
@@ -1186,6 +1189,7 @@ int main(int argc, char **argv) {
         printf("seq,host,port,ip,status,ms\n");
     else if (!quiet && !g_no_dns_banner) {
         printf("\n%sPORTPING%s %s%s:%s%s", C_BOLD, C_RESET, C_BOLD, host, port, C_RESET);
+        if (g_label) printf(" [%s%s%s]", C_YELLOW, g_label, C_RESET);
         if (svc_name) printf(" (%s/%s)", ipstr, svc_name);
         else printf(" (%s)", ipstr);
         if (rdns_buf[0] && strcmp(rdns_buf, host) != 0)

@@ -1346,8 +1346,11 @@ int main(int argc, char **argv) {
         switch (r) {
         case RESULT_OPEN:
             if (json_stream) {
-                printf("{\"seq\":%d,\"host\":\"%s\",\"port\":\"%s\",\"ip\":\"%s\",\"status\":\"open\",\"ms\":%.1f",
-                       seq, host, port, ipstr, ms);
+                struct timespec jts;
+                clock_gettime(CLOCK_REALTIME, &jts);
+                long long epoch_ms = (long long)jts.tv_sec * 1000 + jts.tv_nsec / 1000000;
+                printf("{\"seq\":%d,\"ts\":%lld,\"host\":\"%s\",\"port\":\"%s\",\"ip\":\"%s\",\"status\":\"open\",\"ms\":%.1f",
+                       seq, epoch_ms, host, port, ipstr, ms);
                 if (http_path && http_code > 0) printf(",\"http\":%d", http_code);
                 printf("}\n");
                 fflush(stdout);
@@ -1398,8 +1401,12 @@ int main(int argc, char **argv) {
             break;
 
         case RESULT_REFUSED:
-            if (json_stream)
-                printf("{\"seq\":%d,\"host\":\"%s\",\"port\":\"%s\",\"ip\":\"%s\",\"status\":\"refused\",\"ms\":%.1f}\n", seq, host, port, ipstr, ms);
+            if (json_stream) {
+                struct timespec jts;
+                clock_gettime(CLOCK_REALTIME, &jts);
+                long long epoch_ms = (long long)jts.tv_sec * 1000 + jts.tv_nsec / 1000000;
+                printf("{\"seq\":%d,\"ts\":%lld,\"host\":\"%s\",\"port\":\"%s\",\"ip\":\"%s\",\"status\":\"refused\",\"ms\":%.1f}\n", seq, epoch_ms, host, port, ipstr, ms);
+            }
             else if (csv)
                 printf("%d,%s,%s,%s,refused,%.1f\n", seq, host, port, ipstr, ms);
             else if (!quiet && g_compact) {
@@ -1415,8 +1422,12 @@ int main(int argc, char **argv) {
             break;
 
         case RESULT_TIMEOUT:
-            if (json_stream)
-                printf("{\"seq\":%d,\"host\":\"%s\",\"port\":\"%s\",\"ip\":\"%s\",\"status\":\"timeout\"}\n", seq, host, port, ipstr);
+            if (json_stream) {
+                struct timespec jts;
+                clock_gettime(CLOCK_REALTIME, &jts);
+                long long epoch_ms = (long long)jts.tv_sec * 1000 + jts.tv_nsec / 1000000;
+                printf("{\"seq\":%d,\"ts\":%lld,\"host\":\"%s\",\"port\":\"%s\",\"ip\":\"%s\",\"status\":\"timeout\"}\n", seq, epoch_ms, host, port, ipstr);
+            }
             else if (csv)
                 printf("%d,%s,%s,%s,timeout,\n", seq, host, port, ipstr);
             else if (!quiet && g_compact) {

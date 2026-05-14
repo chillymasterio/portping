@@ -1251,6 +1251,7 @@ int main(int argc, char **argv) {
         else printf(" (%s)", ipstr);
         if (rdns_buf[0] && strcmp(rdns_buf, host) != 0)
             printf(" [%s]", rdns_buf);
+        if (g_interface) printf(" via %s", g_interface);
         printf(" — DNS %.1f ms\n\n", dns_ms);
     } else if (!quiet && g_no_dns_banner) {
         printf("\n");

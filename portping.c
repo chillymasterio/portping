@@ -1165,6 +1165,8 @@ int main(int argc, char **argv) {
     int first_probe = 1;
     int consec_fail = 0;
     int consec_pass = 0;
+    int longest_open_streak = 0;
+    int longest_fail_streak = 0;
     FILE *logfp = NULL;
 
     if (log_file) {
@@ -1294,9 +1296,11 @@ int main(int argc, char **argv) {
         if (r == RESULT_OPEN) {
             consec_pass++;
             consec_fail = 0;
+            if (consec_pass > longest_open_streak) longest_open_streak = consec_pass;
         } else {
             consec_fail++;
             consec_pass = 0;
+            if (consec_fail > longest_fail_streak) longest_fail_streak = consec_fail;
         }
         if (fail_count > 0 && consec_fail >= fail_count) {
             if (!quiet) fprintf(stderr, "Exiting: %d consecutive failures\n", fail_count);
@@ -1371,6 +1375,8 @@ int main(int argc, char **argv) {
         printf("  \"refused\": %d,\n", refused);
         printf("  \"failed\": %d,\n", failed);
         printf("  \"loss_pct\": %.1f,\n", loss);
+        printf("  \"longest_open_streak\": %d,\n", longest_open_streak);
+        printf("  \"longest_fail_streak\": %d,\n", longest_fail_streak);
         printf("  \"duration_sec\": %.1f,\n", session_secs);
         if (success > 0) {
             printf("  \"rtt_min\": %.1f,\n", min_ms);

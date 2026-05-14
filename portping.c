@@ -592,6 +592,12 @@ static double percentile(double *sorted, int n, double p) {
     return sorted[lo] * (1 - frac) + sorted[hi] * frac;
 }
 
+/* ── Top ports list (most commonly open, nmap-inspired) ── */
+
+static const char *top_ports_20 = "21,22,23,25,53,80,110,111,135,139,143,443,993,995,1723,3306,3389,5900,8080,8443";
+static const char *top_ports_50 = "21,22,23,25,53,80,110,111,135,139,143,443,445,993,995,1433,1521,1723,2049,3306,3389,5432,5900,5901,6379,8080,8443,8888,9090,27017,80,443,22,25,53,110,143,993,995,587,465,3389,5900,8080,1433,3306,5432,27017,6379,11211";
+static const char *top_ports_100 = "7,9,13,21,22,23,25,26,37,53,79,80,81,88,106,110,111,113,119,135,139,143,144,179,199,389,427,443,444,445,465,513,514,515,543,544,548,554,587,631,646,873,990,993,995,1025,1026,1027,1028,1029,1110,1433,1521,1720,1723,1755,1900,2000,2001,2049,2121,2717,3000,3128,3306,3389,3986,4899,5000,5009,5051,5060,5101,5190,5357,5432,5631,5666,5800,5900,5901,6000,6001,6379,6646,7070,8000,8008,8009,8080,8081,8443,8888,9090,9100,9999,10000,27017,32768";
+
 /* ── Port presets ── */
 
 static const char *resolve_preset(const char *port) {
@@ -872,6 +878,7 @@ int main(int argc, char **argv) {
     int expect_closed = 0;
     int dns_retry = 0;
     const char *output_file = NULL;
+    int top_ports = 0;
     int i;
 
     /* Parse args */
@@ -957,6 +964,8 @@ int main(int argc, char **argv) {
             dns_retry = 1;
         } else if (strcmp(argv[i], "-o") == 0 && i + 1 < argc) {
             output_file = argv[++i];
+        } else if (strcmp(argv[i], "--top-ports") == 0 && i + 1 < argc) {
+            top_ports = atoi(argv[++i]);
         } else if (strcmp(argv[i], "--loss") == 0) {
             show_loss_only = 1;
         } else if (argv[i][0] == '-') {
@@ -982,6 +991,13 @@ int main(int argc, char **argv) {
             host = host_buf;
             port = colon + 1;
         }
+    }
+
+    /* --top-ports implies scan mode (set port before validation) */
+    if (top_ports > 0 && !port) {
+        if (top_ports <= 20) port = top_ports_20;
+        else if (top_ports <= 50) port = top_ports_50;
+        else port = top_ports_100;
     }
 
     if (!host || !port) {

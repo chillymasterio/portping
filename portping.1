@@ -1,0 +1,123 @@
+.TH PORTPING 1 "2026-05-14" "portping 2.1.0" "User Commands"
+.SH NAME
+portping \- TCP/UDP port connectivity checker
+.SH SYNOPSIS
+.B portping
+[\fIOPTIONS\fR] \fIhost\fR \fIport\fR
+.br
+.B portping
+[\fIOPTIONS\fR] \fIhost\fR:\fIport\fR
+.br
+.B portping
+[\fIOPTIONS\fR] \fIhost\fR \fIport1,port2,...\fR
+.SH DESCRIPTION
+.B portping
+is a TCP port connectivity checker similar to
+.BR ping (8),
+but instead of sending ICMP echo requests, it attempts TCP connections
+to a specified port. It measures connection time, detects port state
+(open/refused/timeout), and provides detailed statistics.
+.SH OPTIONS
+.TP
+.B \-c \fIcount\fR
+Number of probes to send (default: infinite).
+.TP
+.B \-t \fIms\fR
+Timeout per probe in milliseconds (default: 2000).
+.TP
+.B \-i \fIms\fR
+Interval between probes in milliseconds (default: 1000).
+.TP
+.B \-w \fIsec\fR
+Total deadline in seconds. Stop after this time regardless of count.
+.TP
+.B \-4
+Force IPv4 resolution.
+.TP
+.B \-6
+Force IPv6 resolution.
+.TP
+.B \-u
+Use UDP instead of TCP.
+.TP
+.B \-S \fIaddr\fR
+Bind to a specific source address.
+.TP
+.B \-I \fIiface\fR
+Bind to a specific network interface (Linux only).
+.TP
+.B \-T
+Show timestamp on each probe line.
+.TP
+.B \-q
+Quiet mode. Only show summary.
+.TP
+.B \-b
+Grab service banner after successful connection.
+.TP
+.B \-H \fIpath\fR
+HTTP health check. Send GET request to path after connecting.
+.TP
+.B \-A
+Alert (terminal bell) on state changes.
+.TP
+.B \-\-flood
+Rapid-fire mode with no delay between probes.
+.TP
+.B \-\-csv
+Output probe results in CSV format.
+.TP
+.B \-\-json
+Output summary statistics as JSON.
+.TP
+.B \-\-parallel \fIN\fR
+Scan up to N ports simultaneously.
+.TP
+.B \-\-top\-ports \fIN\fR
+Scan the top N most common ports (20, 50, or 100).
+.TP
+.B \-\-max\-rtt \fIms\fR
+Exit with code 3 if average RTT exceeds threshold.
+.TP
+.B \-\-max\-jitter \fIms\fR
+Exit with code 2 if jitter exceeds threshold.
+.TP
+.B \-\-max\-loss \fIpct\fR
+Exit with code 4 if loss percentage exceeds threshold.
+.SH EXIT STATUS
+.TP
+.B 0
+At least one probe succeeded (or port closed with \-\-expect\-closed).
+.TP
+.B 1
+All probes failed.
+.TP
+.B 2
+Jitter threshold exceeded.
+.TP
+.B 3
+RTT threshold exceeded.
+.TP
+.B 4
+Loss threshold exceeded.
+.SH EXAMPLES
+.nf
+# Basic connectivity check
+portping example.com 443
+
+# Scan common ports in parallel
+portping --top-ports 20 --parallel 20 server.com
+
+# HTTP health check with SLA monitoring
+portping -H /health --max-rtt 200 -c 100 api.example.com 8080
+
+# Wait for service to be ready
+portping --until-open -i 500 db-server 5432
+.fi
+.SH AUTHOR
+Written by chillymasterio.
+.SH SEE ALSO
+.BR ping (8),
+.BR nmap (1),
+.BR nc (1),
+.BR curl (1)

@@ -261,17 +261,40 @@ static int g_no_dns_banner = 0;
 static const char *g_label = NULL;
 static int g_compact = 0;
 static int g_avg_only = 0;
+static int g_source_port = 0;
 
 static int bind_source(SOCKET s, int family) {
-    struct addrinfo hints, *res;
-    if (!g_source_addr) return 0;
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = family;
-    hints.ai_socktype = SOCK_STREAM;
-    if (getaddrinfo(g_source_addr, NULL, &hints, &res) != 0) return -1;
-    int ret = bind(s, res->ai_addr, (int)res->ai_addrlen);
-    freeaddrinfo(res);
-    return ret;
+    if (!g_source_addr && !g_source_port) return 0;
+
+    if (g_source_addr) {
+        char sport[16] = {0};
+        if (g_source_port) snprintf(sport, sizeof(sport), "%d", g_source_port);
+        struct addrinfo hints, *res;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = family;
+        hints.ai_socktype = SOCK_STREAM;
+        if (getaddrinfo(g_source_addr, g_source_port ? sport : NULL, &hints, &res) != 0) return -1;
+        int ret = bind(s, res->ai_addr, (int)res->ai_addrlen);
+        freeaddrinfo(res);
+        return ret;
+    }
+
+    /* Source port only, no address */
+    if (family == AF_INET6) {
+        struct sockaddr_in6 sa;
+        memset(&sa, 0, sizeof(sa));
+        sa.sin6_family = AF_INET6;
+        sa.sin6_port = htons((uint16_t)g_source_port);
+        sa.sin6_addr = in6addr_any;
+        return bind(s, (struct sockaddr *)&sa, sizeof(sa));
+    } else {
+        struct sockaddr_in sa;
+        memset(&sa, 0, sizeof(sa));
+        sa.sin_family = AF_INET;
+        sa.sin_port = htons((uint16_t)g_source_port);
+        sa.sin_addr.s_addr = INADDR_ANY;
+        return bind(s, (struct sockaddr *)&sa, sizeof(sa));
+    }
 }
 
 /* ── UDP probe ── */
@@ -991,6 +1014,8 @@ int main(int argc, char **argv) {
             g_compact = 1;
         } else if (strcmp(argv[i], "--avg-only") == 0) {
             g_avg_only = 1;
+        } else if (strcmp(argv[i], "--source-port") == 0 && i + 1 < argc) {
+            g_source_port = atoi(argv[++i]);
         } else if (strcmp(argv[i], "--until-open") == 0) {
             until_open = 1;
         } else if (strcmp(argv[i], "--until-closed") == 0) {

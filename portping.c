@@ -254,6 +254,8 @@ static const char *g_source_addr = NULL;
 static int g_tcp_nodelay = 0;
 static int g_ttl = 0;
 static const char *g_interface = NULL;
+static double g_latency_warn = 0;
+static double g_latency_crit = 0;
 
 static int bind_source(SOCKET s, int family) {
     struct addrinfo hints, *res;
@@ -967,6 +969,10 @@ int main(int argc, char **argv) {
             show_rdns = 1;
         } else if (strcmp(argv[i], "--backoff") == 0) {
             exp_backoff = 1;
+        } else if (strcmp(argv[i], "--latency-warn") == 0 && i + 1 < argc) {
+            g_latency_warn = atof(argv[++i]);
+        } else if (strcmp(argv[i], "--latency-crit") == 0 && i + 1 < argc) {
+            g_latency_crit = atof(argv[++i]);
         } else if (strcmp(argv[i], "--until-open") == 0) {
             until_open = 1;
         } else if (strcmp(argv[i], "--until-closed") == 0) {
@@ -1247,9 +1253,18 @@ int main(int argc, char **argv) {
                     printf("%d,%s,%s,%s,open,%.1f\n", seq, host, port, ipstr, ms);
             } else if (!quiet && !show_loss_only && (rtt_threshold <= 0 || ms >= rtt_threshold)) {
                 if (show_timestamp) print_timestamp();
-                printf("  %s[%d]%s %s:%s  %sopen%s  %.1f ms",
-                       C_BOLD, seq, C_RESET, host, port,
-                       C_GREEN, C_RESET, ms);
+                {
+                    const char *rtt_color = C_GREEN;
+                    const char *rtt_tag = "";
+                    if (g_latency_crit > 0 && ms >= g_latency_crit) {
+                        rtt_color = C_RED; rtt_tag = " CRITICAL";
+                    } else if (g_latency_warn > 0 && ms >= g_latency_warn) {
+                        rtt_color = C_YELLOW; rtt_tag = " SLOW";
+                    }
+                    printf("  %s[%d]%s %s:%s  %sopen%s  %s%.1f ms%s%s",
+                           C_BOLD, seq, C_RESET, host, port,
+                           C_GREEN, C_RESET, rtt_color, ms, rtt_tag, C_RESET);
+                }
                 if (http_path && http_status[0]) {
                     const char *hc = (http_code >= 200 && http_code < 400) ? C_GREEN : C_RED;
                     printf("  %sHTTP %s%s", hc, http_status, C_RESET);

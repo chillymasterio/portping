@@ -1485,6 +1485,19 @@ int main(int argc, char **argv) {
         printf("rtt min/avg/max/jitter = %.1f/%.1f/%.1f/%.1f ms\n",
                min_ms, avg, max_ms, jitter);
 
+        if (g_latency_warn > 0 || g_latency_crit > 0) {
+            int cnt_warn = 0, cnt_crit = 0;
+            int j;
+            for (j = 0; j < rtt_count; j++) {
+                if (g_latency_crit > 0 && rtt_samples[j] >= g_latency_crit) cnt_crit++;
+                else if (g_latency_warn > 0 && rtt_samples[j] >= g_latency_warn) cnt_warn++;
+            }
+            if (cnt_warn > 0 || cnt_crit > 0)
+                printf("latency: %s%d slow%s, %s%d critical%s (warn=%.0f ms, crit=%.0f ms)\n",
+                       C_YELLOW, cnt_warn, C_RESET, C_RED, cnt_crit, C_RESET,
+                       g_latency_warn, g_latency_crit);
+        }
+
         if (rtt_samples && rtt_count > 1) {
             qsort(rtt_samples, rtt_count, sizeof(double), cmp_double);
             printf("rtt p50/p90/p95/p99   = %.1f/%.1f/%.1f/%.1f ms\n",

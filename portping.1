@@ -1,4 +1,4 @@
-.TH PORTPING 1 "2026-05-14" "portping 2.1.0" "User Commands"
+.TH PORTPING 1 "2026-05-14" "portping 2.3.0" "User Commands"
 .SH NAME
 portping \- TCP/UDP port connectivity checker
 .SH SYNOPSIS
@@ -84,6 +84,39 @@ Exit with code 2 if jitter exceeds threshold.
 .TP
 .B \-\-max\-loss \fIpct\fR
 Exit with code 4 if loss percentage exceeds threshold.
+.TP
+.B \-\-latency\-warn \fIms\fR
+RTT warning threshold. Probes exceeding this are tagged SLOW.
+.TP
+.B \-\-latency\-crit \fIms\fR
+RTT critical threshold. Probes exceeding this are tagged CRITICAL.
+.TP
+.B \-\-compact
+Minimal output: one character per probe (. open, x refused, ! timeout).
+.TP
+.B \-\-avg\-only
+Print only the average RTT (or \-1 if no success). Useful for scripting.
+.TP
+.B \-\-retry \fIN\fR
+Retry failed probes up to N times before reporting failure.
+.TP
+.B \-\-source\-port \fIN\fR
+Bind outgoing probes to a specific local port number.
+.TP
+.B \-\-min\-success \fIpct\fR
+Exit with code 7 if success rate is below the given percentage.
+.TP
+.B \-\-adaptive
+Halve interval on success (min 100ms), double on failure (max 30s).
+.TP
+.B \-\-progress
+Show completion percentage during counted (\-c) runs.
+.TP
+.B \-\-json\-stream
+Output one JSON object per probe (newline-delimited JSON).
+.TP
+.B \-\-color=\fImode\fR
+Color mode: always, never, or auto (default).
 .SH EXIT STATUS
 .TP
 .B 0
@@ -100,6 +133,15 @@ RTT threshold exceeded.
 .TP
 .B 4
 Loss threshold exceeded.
+.TP
+.B 5
+Latency critical threshold exceeded.
+.TP
+.B 6
+Average latency above warning threshold.
+.TP
+.B 7
+Success rate below \-\-min\-success threshold.
 .SH EXAMPLES
 .nf
 # Basic connectivity check

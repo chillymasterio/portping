@@ -724,6 +724,7 @@ int main(int argc, char **argv) {
     int no_summary = 0;
     int use_udp = 0;
     int flood_mode = 0;
+    int expect_closed = 0;
     int i;
 
     /* Parse args */
@@ -801,6 +802,8 @@ int main(int argc, char **argv) {
         } else if (strcmp(argv[i], "--flood") == 0) {
             flood_mode = 1;
             quiet = 1;
+        } else if (strcmp(argv[i], "--expect-closed") == 0) {
+            expect_closed = 1;
         } else if (strcmp(argv[i], "--loss") == 0) {
             show_loss_only = 1;
         } else if (argv[i][0] == '-') {
@@ -1261,5 +1264,7 @@ cleanup:
     freeaddrinfo(res);
     net_cleanup();
 
+    if (expect_closed)
+        return (success == 0) ? 0 : 1;
     return (success > 0) ? 0 : 1;
 }

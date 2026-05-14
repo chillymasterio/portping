@@ -263,6 +263,7 @@ static int g_compact = 0;
 static int g_avg_only = 0;
 static int g_source_port = 0;
 static int g_retry = 0;
+static double g_min_success_rate = 0;
 
 static int bind_source(SOCKET s, int family) {
     if (!g_source_addr && !g_source_port) return 0;
@@ -1019,6 +1020,8 @@ int main(int argc, char **argv) {
             g_source_port = atoi(argv[++i]);
         } else if (strcmp(argv[i], "--retry") == 0 && i + 1 < argc) {
             g_retry = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "--min-success") == 0 && i + 1 < argc) {
+            g_min_success_rate = atof(argv[++i]);
         } else if (strcmp(argv[i], "--until-open") == 0) {
             until_open = 1;
         } else if (strcmp(argv[i], "--until-closed") == 0) {
@@ -1634,5 +1637,9 @@ cleanup:
     if (max_loss_threshold >= 0 && total > 0 && loss > max_loss_threshold) return 4;
     if (g_latency_crit > 0 && success > 0 && max_ms >= g_latency_crit) return 5;
     if (g_latency_warn > 0 && success > 0 && avg >= g_latency_warn) return 6;
+    if (g_min_success_rate > 0 && total > 0) {
+        double rate = (double)success / total * 100.0;
+        if (rate < g_min_success_rate) return 7;
+    }
     return (success > 0) ? 0 : 1;
 }

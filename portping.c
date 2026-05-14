@@ -508,16 +508,14 @@ static SOCKET tcp_connect(struct addrinfo *ai, int timeout_ms, double *elapsed) 
 
 /* ── Timestamp ── */
 
+static const char *g_ts_format = "%H:%M:%S";
+
 static void print_timestamp(void) {
-#ifdef _WIN32
-    SYSTEMTIME st;
-    GetLocalTime(&st);
-    printf("%02d:%02d:%02d ", st.wHour, st.wMinute, st.wSecond);
-#else
     time_t now = time(NULL);
     struct tm *tm = localtime(&now);
-    printf("%02d:%02d:%02d ", tm->tm_hour, tm->tm_min, tm->tm_sec);
-#endif
+    char buf[64];
+    strftime(buf, sizeof(buf), g_ts_format, tm);
+    printf("%s ", buf);
 }
 
 /* ── Usage ── */
@@ -918,6 +916,9 @@ int main(int argc, char **argv) {
             af = AF_INET6;
         } else if (strcmp(argv[i], "-T") == 0) {
             show_timestamp = 1;
+        } else if (strcmp(argv[i], "--ts-format") == 0 && i + 1 < argc) {
+            show_timestamp = 1;
+            g_ts_format = argv[++i];
         } else if (strcmp(argv[i], "-q") == 0) {
             quiet = 1;
         } else if (strcmp(argv[i], "-w") == 0 && i + 1 < argc) {

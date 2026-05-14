@@ -952,6 +952,11 @@ int main(int argc, char **argv) {
             return 0;
         } else if (strcmp(argv[i], "--no-color") == 0) {
             use_color = 0;
+        } else if (strncmp(argv[i], "--color=", 8) == 0) {
+            const char *val = argv[i] + 8;
+            if (strcmp(val, "never") == 0) use_color = 0;
+            else if (strcmp(val, "always") == 0) use_color = 1;
+            /* "auto" keeps default behavior */
         } else if (strcmp(argv[i], "-c") == 0 && i + 1 < argc) {
             count = atoi(argv[++i]);
         } else if (strcmp(argv[i], "-t") == 0 && i + 1 < argc) {

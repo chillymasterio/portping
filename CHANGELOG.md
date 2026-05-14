@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.3.0] - 2026-05-14
+
+### Added
+- `--avg-only` for scriptable average RTT output
+- `--source-port` to bind to a specific local port
+- `--retry <N>` to retry failed probes before reporting failure
+- `--min-success <pct>` SLA threshold (exit code 7)
+- `--adaptive` interval that adjusts based on probe results
+- `--quiet-fail` to suppress error output for scripting
+- `--color=always/never/auto` for explicit color control
+- `--progress` completion percentage during counted runs
+- Interface name display in banner when `-I` is used
+
 ## [2.2.0] - 2026-05-14
 
 ### Added

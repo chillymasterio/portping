@@ -9,6 +9,8 @@
 - `--label` for custom host identification in output
 - Latency threshold violation counts in summary
 - Exit codes 5/6 for latency threshold violations
+- `--compact` minimal single-character-per-probe output (`.` open, `x` refused, `!` timeout, `E` error)
+- `--json-stream` newline-delimited JSON output per probe
 
 ### Fixed
 - Added `_POSIX_C_SOURCE` for nanosleep/timespec availability

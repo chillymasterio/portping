@@ -259,6 +259,7 @@ static double g_latency_crit = 0;
 static int g_resolve_each = 0;
 static int g_no_dns_banner = 0;
 static const char *g_label = NULL;
+static int g_compact = 0;
 
 static int bind_source(SOCKET s, int family) {
     struct addrinfo hints, *res;
@@ -985,6 +986,8 @@ int main(int argc, char **argv) {
             g_no_dns_banner = 1;
         } else if (strcmp(argv[i], "--label") == 0 && i + 1 < argc) {
             g_label = argv[++i];
+        } else if (strcmp(argv[i], "--compact") == 0) {
+            g_compact = 1;
         } else if (strcmp(argv[i], "--until-open") == 0) {
             until_open = 1;
         } else if (strcmp(argv[i], "--until-closed") == 0) {
@@ -1281,6 +1284,9 @@ int main(int argc, char **argv) {
                     printf("%d,%s,%s,%s,open,%.1f,%d\n", seq, host, port, ipstr, ms, http_code);
                 else
                     printf("%d,%s,%s,%s,open,%.1f\n", seq, host, port, ipstr, ms);
+            } else if (!quiet && g_compact) {
+                printf("%s.%s", C_GREEN, C_RESET);
+                fflush(stdout);
             } else if (!quiet && !show_loss_only && (rtt_threshold <= 0 || ms >= rtt_threshold)) {
                 if (show_timestamp) print_timestamp();
                 {
@@ -1324,7 +1330,10 @@ int main(int argc, char **argv) {
                 printf("{\"seq\":%d,\"host\":\"%s\",\"port\":\"%s\",\"ip\":\"%s\",\"status\":\"refused\",\"ms\":%.1f}\n", seq, host, port, ipstr, ms);
             else if (csv)
                 printf("%d,%s,%s,%s,refused,%.1f\n", seq, host, port, ipstr, ms);
-            else if (!quiet) {
+            else if (!quiet && g_compact) {
+                printf("%sx%s", C_RED, C_RESET);
+                fflush(stdout);
+            } else if (!quiet) {
                 if (show_timestamp) print_timestamp();
                 printf("  %s[%d]%s %s:%s  %srefused%s  %.1f ms\n",
                        C_BOLD, seq, C_RESET, host, port,
@@ -1338,7 +1347,10 @@ int main(int argc, char **argv) {
                 printf("{\"seq\":%d,\"host\":\"%s\",\"port\":\"%s\",\"ip\":\"%s\",\"status\":\"timeout\"}\n", seq, host, port, ipstr);
             else if (csv)
                 printf("%d,%s,%s,%s,timeout,\n", seq, host, port, ipstr);
-            else if (!quiet) {
+            else if (!quiet && g_compact) {
+                printf("%s!%s", C_YELLOW, C_RESET);
+                fflush(stdout);
+            } else if (!quiet) {
                 if (show_timestamp) print_timestamp();
                 printf("  %s[%d]%s %s:%s  %stimeout%s  >%d ms\n",
                        C_BOLD, seq, C_RESET, host, port,
@@ -1350,7 +1362,10 @@ int main(int argc, char **argv) {
         case RESULT_ERROR:
             if (csv)
                 printf("%d,%s,%s,%s,error,\n", seq, host, port, ipstr);
-            else if (!quiet) {
+            else if (!quiet && g_compact) {
+                printf("%sE%s", C_RED, C_RESET);
+                fflush(stdout);
+            } else if (!quiet) {
                 if (show_timestamp) print_timestamp();
                 printf("  %s[%d]%s %s:%s  %serror%s\n",
                        C_BOLD, seq, C_RESET, host, port,
@@ -1487,6 +1502,7 @@ int main(int argc, char **argv) {
         goto cleanup;
     }
 
+    if (g_compact) printf("\n");
     printf("\n--- %s:%s portping statistics ---\n", host, port);
     printf("%d attempts, %s%d open%s, %d refused, %d timeout/error",
            total, C_GREEN, success, C_RESET, refused, failed);

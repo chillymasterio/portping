@@ -265,6 +265,7 @@ static int g_source_port = 0;
 static int g_retry = 0;
 static double g_min_success_rate = 0;
 static int g_adaptive = 0;
+static int g_quiet_fail = 0;
 
 static int bind_source(SOCKET s, int family) {
     if (!g_source_addr && !g_source_port) return 0;
@@ -1036,6 +1037,8 @@ int main(int argc, char **argv) {
             g_min_success_rate = atof(argv[++i]);
         } else if (strcmp(argv[i], "--adaptive") == 0) {
             g_adaptive = 1;
+        } else if (strcmp(argv[i], "--quiet-fail") == 0) {
+            g_quiet_fail = 1;
         } else if (strcmp(argv[i], "--until-open") == 0) {
             until_open = 1;
         } else if (strcmp(argv[i], "--until-closed") == 0) {
@@ -1227,7 +1230,7 @@ int main(int argc, char **argv) {
         }
     }
     if (rc != 0) {
-        fprintf(stderr, "Cannot resolve %s: %s\n", host, gai_strerror(rc));
+        if (!g_quiet_fail) fprintf(stderr, "Cannot resolve %s: %s\n", host, gai_strerror(rc));
         net_cleanup();
         return 1;
     }

@@ -1122,11 +1122,18 @@ int main(int argc, char **argv) {
             }
         }
 
-        int ret;
-        if (scan_parallel > 0)
-            ret = scan_ports_parallel(host, expanded, af, timeout_ms, csv, scan_parallel);
-        else
-            ret = scan_ports(host, expanded, af, timeout_ms, csv);
+        int scan_count_iters = (count > 0) ? count : 1;
+        int ret = 0, sc;
+        for (sc = 0; sc < scan_count_iters && running; sc++) {
+            if (scan_count_iters > 1 && !csv && !scan_count_only)
+                printf("  === Scan %d/%d ===\n", sc + 1, scan_count_iters);
+            if (scan_parallel > 0)
+                ret = scan_ports_parallel(host, expanded, af, timeout_ms, csv, scan_parallel);
+            else
+                ret = scan_ports(host, expanded, af, timeout_ms, csv);
+            if (sc + 1 < scan_count_iters && running)
+                sleep_ms(interval_ms);
+        }
         net_cleanup();
         return ret;
     }

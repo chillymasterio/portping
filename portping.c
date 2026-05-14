@@ -726,6 +726,7 @@ int main(int argc, char **argv) {
     int flood_mode = 0;
     int expect_closed = 0;
     int dns_retry = 0;
+    const char *output_file = NULL;
     int i;
 
     /* Parse args */
@@ -807,6 +808,8 @@ int main(int argc, char **argv) {
             expect_closed = 1;
         } else if (strcmp(argv[i], "--dns-retry") == 0) {
             dns_retry = 1;
+        } else if (strcmp(argv[i], "-o") == 0 && i + 1 < argc) {
+            output_file = argv[++i];
         } else if (strcmp(argv[i], "--loss") == 0) {
             show_loss_only = 1;
         } else if (argv[i][0] == '-') {
@@ -872,6 +875,16 @@ int main(int argc, char **argv) {
     }
 
     if (source_addr) g_source_addr = source_addr;
+
+    /* Redirect output to file if specified */
+    if (output_file) {
+        FILE *of = freopen(output_file, "w", stdout);
+        if (!of) {
+            fprintf(stderr, "Cannot open output file '%s'\n", output_file);
+            return 1;
+        }
+        use_color = 0;
+    }
 
     /* Resolve service name to port number if needed */
     static char port_num_buf[8];

@@ -250,6 +250,7 @@ static int http_check(SOCKET s, const char *host, const char *path,
 
 static const char *g_source_addr = NULL;
 static int g_tcp_nodelay = 0;
+static int g_ttl = 0;
 
 static int bind_source(SOCKET s, int family) {
     struct addrinfo hints, *res;
@@ -335,6 +336,10 @@ static result_t tcp_ping_ex(struct addrinfo *ai, int timeout_ms, double *elapsed
     if (g_tcp_nodelay) {
         int one = 1;
         setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (char *)&one, sizeof(one));
+    }
+    if (g_ttl > 0) {
+        int ttl = g_ttl;
+        setsockopt(s, IPPROTO_IP, IP_TTL, (char *)&ttl, sizeof(ttl));
     }
     set_nonblocking(s);
 
@@ -940,6 +945,8 @@ int main(int argc, char **argv) {
             scan_filter = SCAN_CLOSED;
         } else if (strcmp(argv[i], "--nodelay") == 0) {
             g_tcp_nodelay = 1;
+        } else if (strcmp(argv[i], "--ttl") == 0 && i + 1 < argc) {
+            g_ttl = atoi(argv[++i]);
         } else if (strcmp(argv[i], "--no-summary") == 0) {
             no_summary = 1;
         } else if (strcmp(argv[i], "-r") == 0) {

@@ -879,6 +879,7 @@ int main(int argc, char **argv) {
     int dns_retry = 0;
     const char *output_file = NULL;
     int top_ports = 0;
+    double rtt_threshold = 0;  /* --slow-threshold: only show probes above this ms */
     int i;
 
     /* Parse args */
@@ -966,6 +967,8 @@ int main(int argc, char **argv) {
             output_file = argv[++i];
         } else if (strcmp(argv[i], "--top-ports") == 0 && i + 1 < argc) {
             top_ports = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "--slow") == 0 && i + 1 < argc) {
+            rtt_threshold = atof(argv[++i]);
         } else if (strcmp(argv[i], "--loss") == 0) {
             show_loss_only = 1;
         } else if (argv[i][0] == '-') {
@@ -1208,7 +1211,7 @@ int main(int argc, char **argv) {
                     printf("%d,%s,%s,%s,open,%.1f,%d\n", seq, host, port, ipstr, ms, http_code);
                 else
                     printf("%d,%s,%s,%s,open,%.1f\n", seq, host, port, ipstr, ms);
-            } else if (!quiet && !show_loss_only) {
+            } else if (!quiet && !show_loss_only && (rtt_threshold <= 0 || ms >= rtt_threshold)) {
                 if (show_timestamp) print_timestamp();
                 printf("  %s[%d]%s %s:%s  %sopen%s  %.1f ms",
                        C_BOLD, seq, C_RESET, host, port,

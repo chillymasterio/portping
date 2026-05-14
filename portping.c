@@ -725,6 +725,7 @@ int main(int argc, char **argv) {
     int use_udp = 0;
     int flood_mode = 0;
     int expect_closed = 0;
+    int dns_retry = 0;
     int i;
 
     /* Parse args */
@@ -804,6 +805,8 @@ int main(int argc, char **argv) {
             quiet = 1;
         } else if (strcmp(argv[i], "--expect-closed") == 0) {
             expect_closed = 1;
+        } else if (strcmp(argv[i], "--dns-retry") == 0) {
+            dns_retry = 1;
         } else if (strcmp(argv[i], "--loss") == 0) {
             show_loss_only = 1;
         } else if (argv[i][0] == '-') {
@@ -927,6 +930,16 @@ int main(int argc, char **argv) {
     struct addrinfo *res;
     int rc = resolve(host, port, af, &res);
     double dns_ms = timer_elapsed_ms(&dns_timer);
+    if (rc != 0 && dns_retry) {
+        int attempt;
+        for (attempt = 0; attempt < 3 && rc != 0; attempt++) {
+            sleep_ms(1000 * (attempt + 1));
+            if (!quiet) fprintf(stderr, "DNS retry %d/3...\n", attempt + 1);
+            timer_start(&dns_timer);
+            rc = resolve(host, port, af, &res);
+            dns_ms = timer_elapsed_ms(&dns_timer);
+        }
+    }
     if (rc != 0) {
         fprintf(stderr, "Cannot resolve %s: %s\n", host, gai_strerror(rc));
         net_cleanup();

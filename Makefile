@@ -5,6 +5,7 @@ LDLIBS ?= -lm
 
 PREFIX ?= /usr/local
 BINDIR ?= $(PREFIX)/bin
+MANDIR ?= $(PREFIX)/share/man/man1
 
 TARGET = portping
 SRC = portping.c
@@ -27,6 +28,9 @@ clean:
 install: $(TARGET)
 	install -d $(DESTDIR)$(BINDIR)
 	install -m 755 $(TARGET) $(DESTDIR)$(BINDIR)/$(TARGET)
+	install -d $(DESTDIR)$(MANDIR)
+	install -m 644 portping.1 $(DESTDIR)$(MANDIR)/portping.1
 
 uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/$(TARGET)
+	rm -f $(DESTDIR)$(MANDIR)/portping.1

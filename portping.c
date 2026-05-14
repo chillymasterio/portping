@@ -892,6 +892,7 @@ int main(int argc, char **argv) {
     int top_ports = 0;
     double rtt_threshold = 0;  /* --slow-threshold: only show probes above this ms */
     double max_jitter_threshold = 0;
+    double max_rtt_threshold = 0;
     int i;
 
     /* Parse args */
@@ -987,6 +988,8 @@ int main(int argc, char **argv) {
             rtt_threshold = atof(argv[++i]);
         } else if (strcmp(argv[i], "--max-jitter") == 0 && i + 1 < argc) {
             max_jitter_threshold = atof(argv[++i]);
+        } else if (strcmp(argv[i], "--max-rtt") == 0 && i + 1 < argc) {
+            max_rtt_threshold = atof(argv[++i]);
         } else if (strcmp(argv[i], "--loss") == 0) {
             show_loss_only = 1;
         } else if (argv[i][0] == '-') {
@@ -1491,5 +1494,6 @@ cleanup:
         double jitter_final = sqrt(variance > 0 ? variance : 0);
         if (jitter_final > max_jitter_threshold) return 2;
     }
+    if (max_rtt_threshold > 0 && success > 0 && avg > max_rtt_threshold) return 3;
     return (success > 0) ? 0 : 1;
 }

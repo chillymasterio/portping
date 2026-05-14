@@ -951,6 +951,18 @@ int main(int argc, char **argv) {
         } else if (strcmp(argv[i], "-V") == 0 || strcmp(argv[i], "--version") == 0) {
             printf("portping %s\n", PORTPING_VERSION);
             return 0;
+        } else if (strcmp(argv[i], "--version-json") == 0) {
+            printf("{\"name\":\"portping\",\"version\":\"%s\",\"platform\":\"%s\"}\n",
+                   PORTPING_VERSION,
+#ifdef _WIN32
+                   "windows"
+#elif __APPLE__
+                   "macos"
+#else
+                   "linux"
+#endif
+            );
+            return 0;
         } else if (strcmp(argv[i], "--no-color") == 0) {
             use_color = 0;
         } else if (strncmp(argv[i], "--color=", 8) == 0) {

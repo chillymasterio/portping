@@ -271,6 +271,7 @@ static int g_prometheus = 0;
 static int g_nagios = 0;
 static int g_shell_output = 0;
 static int g_tap = 0;
+static int g_grace_probes = 0;
 
 static int bind_source(SOCKET s, int family) {
     if (!g_source_addr && !g_source_port) return 0;
@@ -1069,6 +1070,8 @@ int main(int argc, char **argv) {
             g_shell_output = 1;
         } else if (strcmp(argv[i], "--tap") == 0) {
             g_tap = 1;
+        } else if (strcmp(argv[i], "--grace") == 0 && i + 1 < argc) {
+            g_grace_probes = atoi(argv[++i]);
         } else if (strcmp(argv[i], "--progress") == 0) {
             g_progress = 1;
         } else if (strcmp(argv[i], "--until-open") == 0) {
@@ -1448,7 +1451,7 @@ int main(int argc, char **argv) {
                        C_BOLD, seq, C_RESET, host, port,
                        C_RED, C_RESET, ms);
             }
-            refused++;
+            if (seq > g_grace_probes) refused++;
             break;
 
         case RESULT_TIMEOUT:
@@ -1471,7 +1474,7 @@ int main(int argc, char **argv) {
                        C_BOLD, seq, C_RESET, host, port,
                        C_YELLOW, C_RESET, timeout_ms);
             }
-            failed++;
+            if (seq > g_grace_probes) failed++;
             break;
 
         case RESULT_ERROR:
@@ -1486,7 +1489,7 @@ int main(int argc, char **argv) {
                        C_BOLD, seq, C_RESET, host, port,
                        C_RED, C_RESET);
             }
-            failed++;
+            if (seq > g_grace_probes) failed++;
             break;
         }
 

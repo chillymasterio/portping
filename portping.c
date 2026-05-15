@@ -94,7 +94,7 @@
   }
 #endif
 
-#define PORTPING_VERSION "2.3.0"
+#define PORTPING_VERSION "2.4.0"
 #define MAX_RTT_SAMPLES 10000
 
 /* ── Globals ── */

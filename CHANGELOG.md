@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.4.0] - 2026-05-15
+
+### Added
+- `--prometheus` for Prometheus-compatible metrics output
+- `--nagios` for Nagios/Icinga-compatible check output
+- `--shell` for eval-friendly shell variable output
+- `--tap` for Test Anything Protocol output format
+- `--grace <N>` to exclude first N probes from failure stats
+
 ## [2.3.0] - 2026-05-14
 
 ### Added

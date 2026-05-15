@@ -1,4 +1,4 @@
-.TH PORTPING 1 "2026-05-14" "portping 2.3.0" "User Commands"
+.TH PORTPING 1 "2026-05-15" "portping 2.4.0" "User Commands"
 .SH NAME
 portping \- TCP/UDP port connectivity checker
 .SH SYNOPSIS
@@ -117,6 +117,21 @@ Output one JSON object per probe (newline-delimited JSON).
 .TP
 .B \-\-color=\fImode\fR
 Color mode: always, never, or auto (default).
+.TP
+.B \-\-prometheus
+Output Prometheus-compatible metrics after probing.
+.TP
+.B \-\-nagios
+Output Nagios/Icinga-compatible check result.
+.TP
+.B \-\-shell
+Output results as shell variables (eval-friendly).
+.TP
+.B \-\-tap
+Output in Test Anything Protocol (TAP) format.
+.TP
+.B \-\-grace \fIN\fR
+Exclude the first N probes from failure statistics.
 .SH EXIT STATUS
 .TP
 .B 0

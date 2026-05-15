@@ -268,6 +268,7 @@ static int g_adaptive = 0;
 static int g_quiet_fail = 0;
 static int g_progress = 0;
 static int g_prometheus = 0;
+static int g_nagios = 0;
 
 static int bind_source(SOCKET s, int family) {
     if (!g_source_addr && !g_source_port) return 0;
@@ -1060,6 +1061,8 @@ int main(int argc, char **argv) {
             g_quiet_fail = 1;
         } else if (strcmp(argv[i], "--prometheus") == 0) {
             g_prometheus = 1;
+        } else if (strcmp(argv[i], "--nagios") == 0) {
+            g_nagios = 1;
         } else if (strcmp(argv[i], "--progress") == 0) {
             g_progress = 1;
         } else if (strcmp(argv[i], "--until-open") == 0) {
@@ -1578,6 +1581,18 @@ int main(int argc, char **argv) {
             printf("portping_rtt_avg{host=\"%s\",port=\"%s\"} %.1f\n", host, port, avg);
             printf("portping_rtt_max{host=\"%s\",port=\"%s\"} %.1f\n", host, port, max_ms);
         }
+        goto cleanup;
+    }
+
+    if (g_nagios) {
+        const char *state;
+        int nagios_code;
+        if (success == 0) { state = "CRITICAL"; nagios_code = 2; }
+        else if (loss > 50) { state = "WARNING"; nagios_code = 1; }
+        else { state = "OK"; nagios_code = 0; }
+        printf("TCP %s - %s:%s %d/%d open (%.0f%% loss) | rtt=%.1fms loss=%.0f%% open=%d\n",
+               state, host, port, success, total, loss, avg, loss, success);
+        (void)nagios_code;
         goto cleanup;
     }
 

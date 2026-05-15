@@ -269,6 +269,7 @@ static int g_quiet_fail = 0;
 static int g_progress = 0;
 static int g_prometheus = 0;
 static int g_nagios = 0;
+static int g_shell_output = 0;
 
 static int bind_source(SOCKET s, int family) {
     if (!g_source_addr && !g_source_port) return 0;
@@ -1063,6 +1064,8 @@ int main(int argc, char **argv) {
             g_prometheus = 1;
         } else if (strcmp(argv[i], "--nagios") == 0) {
             g_nagios = 1;
+        } else if (strcmp(argv[i], "--shell") == 0) {
+            g_shell_output = 1;
         } else if (strcmp(argv[i], "--progress") == 0) {
             g_progress = 1;
         } else if (strcmp(argv[i], "--until-open") == 0) {
@@ -1580,6 +1583,23 @@ int main(int argc, char **argv) {
             printf("portping_rtt_min{host=\"%s\",port=\"%s\"} %.1f\n", host, port, min_ms);
             printf("portping_rtt_avg{host=\"%s\",port=\"%s\"} %.1f\n", host, port, avg);
             printf("portping_rtt_max{host=\"%s\",port=\"%s\"} %.1f\n", host, port, max_ms);
+        }
+        goto cleanup;
+    }
+
+    if (g_shell_output) {
+        printf("PP_HOST='%s'\n", host);
+        printf("PP_PORT=%s\n", port);
+        printf("PP_IP='%s'\n", ipstr);
+        printf("PP_ATTEMPTS=%d\n", total);
+        printf("PP_SUCCESS=%d\n", success);
+        printf("PP_REFUSED=%d\n", refused);
+        printf("PP_FAILED=%d\n", failed);
+        printf("PP_LOSS=%.1f\n", loss);
+        if (success > 0) {
+            printf("PP_RTT_MIN=%.1f\n", min_ms);
+            printf("PP_RTT_AVG=%.1f\n", avg);
+            printf("PP_RTT_MAX=%.1f\n", max_ms);
         }
         goto cleanup;
     }

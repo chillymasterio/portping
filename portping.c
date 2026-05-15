@@ -270,6 +270,7 @@ static int g_progress = 0;
 static int g_prometheus = 0;
 static int g_nagios = 0;
 static int g_shell_output = 0;
+static int g_tap = 0;
 
 static int bind_source(SOCKET s, int family) {
     if (!g_source_addr && !g_source_port) return 0;
@@ -1066,6 +1067,8 @@ int main(int argc, char **argv) {
             g_nagios = 1;
         } else if (strcmp(argv[i], "--shell") == 0) {
             g_shell_output = 1;
+        } else if (strcmp(argv[i], "--tap") == 0) {
+            g_tap = 1;
         } else if (strcmp(argv[i], "--progress") == 0) {
             g_progress = 1;
         } else if (strcmp(argv[i], "--until-open") == 0) {
@@ -1317,6 +1320,8 @@ int main(int argc, char **argv) {
             fprintf(stderr, "Warning: cannot open log file '%s'\n", log_file);
     }
 
+    if (g_tap && count > 0) printf("1..%d\n", count);
+
     while (running && (count == 0 || seq < count) &&
            (deadline_sec == 0 || timer_elapsed_ms(&deadline_timer) < deadline_sec * 1000.0)) {
         double ms = 0;
@@ -1375,6 +1380,8 @@ int main(int argc, char **argv) {
                 if (http_path && http_code > 0) printf(",\"http\":%d", http_code);
                 printf("}\n");
                 fflush(stdout);
+            } else if (g_tap) {
+                printf("ok %d - %s:%s open (%.1f ms)\n", seq, host, port, ms);
             } else if (csv) {
                 if (http_path)
                     printf("%d,%s,%s,%s,open,%.1f,%d\n", seq, host, port, ipstr, ms, http_code);
@@ -1428,6 +1435,8 @@ int main(int argc, char **argv) {
                 long long epoch_ms = (long long)jts.tv_sec * 1000 + jts.tv_nsec / 1000000;
                 printf("{\"seq\":%d,\"ts\":%lld,\"host\":\"%s\",\"port\":\"%s\",\"ip\":\"%s\",\"status\":\"refused\",\"ms\":%.1f}\n", seq, epoch_ms, host, port, ipstr, ms);
             }
+            else if (g_tap)
+                printf("not ok %d - %s:%s refused (%.1f ms)\n", seq, host, port, ms);
             else if (csv)
                 printf("%d,%s,%s,%s,refused,%.1f\n", seq, host, port, ipstr, ms);
             else if (!quiet && g_compact) {
@@ -1449,6 +1458,8 @@ int main(int argc, char **argv) {
                 long long epoch_ms = (long long)jts.tv_sec * 1000 + jts.tv_nsec / 1000000;
                 printf("{\"seq\":%d,\"ts\":%lld,\"host\":\"%s\",\"port\":\"%s\",\"ip\":\"%s\",\"status\":\"timeout\"}\n", seq, epoch_ms, host, port, ipstr);
             }
+            else if (g_tap)
+                printf("not ok %d - %s:%s timeout (>%d ms)\n", seq, host, port, timeout_ms);
             else if (csv)
                 printf("%d,%s,%s,%s,timeout,\n", seq, host, port, ipstr);
             else if (!quiet && g_compact) {

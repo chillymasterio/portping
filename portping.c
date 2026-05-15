@@ -267,6 +267,7 @@ static double g_min_success_rate = 0;
 static int g_adaptive = 0;
 static int g_quiet_fail = 0;
 static int g_progress = 0;
+static int g_prometheus = 0;
 
 static int bind_source(SOCKET s, int family) {
     if (!g_source_addr && !g_source_port) return 0;
@@ -1057,6 +1058,8 @@ int main(int argc, char **argv) {
             g_adaptive = 1;
         } else if (strcmp(argv[i], "--quiet-fail") == 0) {
             g_quiet_fail = 1;
+        } else if (strcmp(argv[i], "--prometheus") == 0) {
+            g_prometheus = 1;
         } else if (strcmp(argv[i], "--progress") == 0) {
             g_progress = 1;
         } else if (strcmp(argv[i], "--until-open") == 0) {
@@ -1563,6 +1566,20 @@ int main(int argc, char **argv) {
     double session_secs = timer_elapsed_ms(&session_timer) / 1000.0;
 
     if (csv || no_summary) goto cleanup;
+
+    if (g_prometheus) {
+        printf("portping_attempts{host=\"%s\",port=\"%s\"} %d\n", host, port, total);
+        printf("portping_success{host=\"%s\",port=\"%s\"} %d\n", host, port, success);
+        printf("portping_refused{host=\"%s\",port=\"%s\"} %d\n", host, port, refused);
+        printf("portping_failed{host=\"%s\",port=\"%s\"} %d\n", host, port, failed);
+        printf("portping_loss_pct{host=\"%s\",port=\"%s\"} %.1f\n", host, port, loss);
+        if (success > 0) {
+            printf("portping_rtt_min{host=\"%s\",port=\"%s\"} %.1f\n", host, port, min_ms);
+            printf("portping_rtt_avg{host=\"%s\",port=\"%s\"} %.1f\n", host, port, avg);
+            printf("portping_rtt_max{host=\"%s\",port=\"%s\"} %.1f\n", host, port, max_ms);
+        }
+        goto cleanup;
+    }
 
     if (g_avg_only) {
         if (success > 0)

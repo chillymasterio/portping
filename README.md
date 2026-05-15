@@ -122,6 +122,11 @@ portping --top-ports 100 --parallel 50 --only-open server.com
 | `--label <text>` | Custom label in banner |
 | `--no-dns` | Suppress DNS info in banner |
 | `--color=MODE` | Color: always/never/auto |
+| `--prometheus` | Prometheus-compatible metrics |
+| `--nagios` | Nagios/Icinga check output |
+| `--shell` | Shell variable output (eval-friendly) |
+| `--tap` | Test Anything Protocol format |
+| `--grace <N>` | Exclude first N probes from stats |
 | `--quiet-fail` | Suppress errors for scripting |
 
 ### Probing

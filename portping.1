@@ -178,3 +178,32 @@ Written by chillymasterio.
 .BR nmap (1),
 .BR nc (1),
 .BR curl (1)
+
+.SH "NEW IN 2.5.0"
+.TP
+.B \-\-http\-check
+After establishing TCP connection, send an HTTP GET request and verify
+the response code matches --expect-http (default 200).
+.TP
+.B \-\-dns\-resolve
+Show the resolved IP address alongside hostnames in output.
+.TP
+.B \-\-csv
+Output results in CSV format (timestamp,host,port,status,rtt_ms).
+.TP
+.B \-\-json
+Output results as JSON array for programmatic consumption.
+.TP
+.B \-\-show\-date
+Include the full date (YYYY-MM-DD) in timestamp output.
+.TP
+.B \-\-fail\-fast
+Exit with error code on the first connection failure instead of
+continuing to probe.
+.TP
+.B \-\-banner
+After connecting, wait up to 2 seconds for a service banner and
+display it in the output.
+.TP
+.B \-\-parallel N
+Check multiple hosts concurrently (default 1, max 64).

@@ -276,6 +276,7 @@ static int g_http_check = 0;
 static int g_expect_http_code = 200;
 static int g_show_resolve = 0;
 static int g_csv_output = 0;
+static int g_json_output = 0;
 
 static int bind_source(SOCKET s, int family) {
     if (!g_source_addr && !g_source_port) return 0;

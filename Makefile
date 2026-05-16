@@ -34,3 +34,15 @@ install: $(TARGET)
 uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/$(TARGET)
 	rm -f $(DESTDIR)$(MANDIR)/portping.1
+
+PREFIX ?= /usr/local
+
+install: portping
+	install -d $(DESTDIR)$(PREFIX)/bin
+	install -m 755 portping $(DESTDIR)$(PREFIX)/bin/portping
+	install -d $(DESTDIR)$(PREFIX)/share/man/man1
+	install -m 644 portping.1 $(DESTDIR)$(PREFIX)/share/man/man1/portping.1
+
+uninstall:
+	rm -f $(DESTDIR)$(PREFIX)/bin/portping
+	rm -f $(DESTDIR)$(PREFIX)/share/man/man1/portping.1

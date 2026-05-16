@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(portping VERSION 2.1.0 LANGUAGES C)
+project(portping LANGUAGES C)
 
 set(CMAKE_C_STANDARD 99)
 
@@ -11,5 +11,5 @@ else()
     target_link_libraries(portping m)
 endif()
 
-install(TARGETS portping RUNTIME DESTINATION bin)
+install(TARGETS portping DESTINATION bin)
 install(FILES portping.1 DESTINATION share/man/man1)

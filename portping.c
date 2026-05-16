@@ -564,6 +564,7 @@ static int g_parallel = 1;
 static int g_udp_mode = 0;
 static int g_tls_check = 0;
 static const char *g_output_file = NULL;
+static const char *g_alert_cmd = NULL;
 
 static void print_timestamp(void) {
     time_t now = time(NULL);

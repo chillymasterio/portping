@@ -565,6 +565,8 @@ static int g_udp_mode = 0;
 static int g_tls_check = 0;
 static const char *g_output_file = NULL;
 static const char *g_alert_cmd = NULL;
+static int g_force_ipv4 = 0;
+static int g_force_ipv6 = 0;
 
 static void print_timestamp(void) {
     time_t now = time(NULL);

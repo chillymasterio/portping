@@ -272,6 +272,8 @@ static int g_nagios = 0;
 static int g_shell_output = 0;
 static int g_tap = 0;
 static int g_grace_probes = 0;
+static int g_http_check = 0;
+static int g_expect_http_code = 200;
 
 static int bind_source(SOCKET s, int family) {
     if (!g_source_addr && !g_source_port) return 0;

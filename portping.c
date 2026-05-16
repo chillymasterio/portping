@@ -558,6 +558,8 @@ static SOCKET tcp_connect(struct addrinfo *ai, int timeout_ms, double *elapsed) 
 static const char *g_ts_format = "%H:%M:%S";
 static int g_show_date = 0;
 static int g_fail_fast = 0;
+static int g_grab_banner = 0;
+static int g_banner_timeout_ms = 2000;
 
 static void print_timestamp(void) {
     time_t now = time(NULL);

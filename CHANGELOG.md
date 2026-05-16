@@ -124,3 +124,15 @@
 - Min/avg/max RTT statistics
 - Scriptable exit codes (0 = success, 1 = all failed)
 - `-c`, `-t`, `-i` flags
+
+## [2.5.0] - 2026-05-16
+
+### Added
+- `--http-check` — verify HTTP 200 response after TCP connect
+- `--dns-resolve` — display resolved IP address in output
+- `--csv` — CSV output mode for data import
+- `--json` — structured JSON output
+- `--show-date` — include full date in timestamps
+- `--fail-fast` — exit immediately on first failure
+- `--banner` — grab service banner after connect (2s timeout)
+- `--parallel N` — concurrent multi-host checking

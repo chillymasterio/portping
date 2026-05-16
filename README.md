@@ -126,6 +126,12 @@ portping --top-ports 100 --parallel 50 --only-open server.com
 | `--nagios` | Nagios/Icinga check output |
 | `--shell` | Shell variable output (eval-friendly) |
 | `--tap` | Test Anything Protocol format |
+| `--csv` | CSV output (timestamp,host,port,status,rtt) |
+| `--json` | Structured JSON output |
+| `--http-check` | Verify HTTP response after connect |
+| `--banner` | Grab service banner |
+| `--fail-fast` | Exit on first failure |
+| `--parallel N` | Concurrent multi-host checking |
 | `--grace <N>` | Exclude first N probes from stats |
 | `--quiet-fail` | Suppress errors for scripting |
 

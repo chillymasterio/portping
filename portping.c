@@ -556,6 +556,7 @@ static SOCKET tcp_connect(struct addrinfo *ai, int timeout_ms, double *elapsed) 
 /* ── Timestamp ── */
 
 static const char *g_ts_format = "%H:%M:%S";
+static int g_show_date = 0;
 
 static void print_timestamp(void) {
     time_t now = time(NULL);

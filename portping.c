@@ -562,6 +562,7 @@ static int g_grab_banner = 0;
 static int g_banner_timeout_ms = 2000;
 static int g_parallel = 1;
 static int g_udp_mode = 0;
+static int g_tls_check = 0;
 
 static void print_timestamp(void) {
     time_t now = time(NULL);
